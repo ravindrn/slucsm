@@ -20,14 +20,14 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
 
     const token = signToken(user);
-    res
-      .cookie("token", token, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 7 * 24 * 3600 * 1000,
-      })
-      .json({ user: { id: user._id, name: user.name, role: user.role } });
+   res
+  .cookie("token", token, {
+    httpOnly: true,
+    sameSite: "none",
+    secure: true,
+    maxAge: 7 * 24 * 3600 * 1000,
+  })
+  .json({ user: { id: user._id, name: user.name, role: user.role } });
   } catch (e) {
     res.status(500).json({ message: e.message });
   }

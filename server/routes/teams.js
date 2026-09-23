@@ -32,12 +32,12 @@ router.post("/login", async (req, res) => {
     );
 
     res
-      .cookie("teamToken", token, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 30 * 24 * 3600 * 1000,
-      })
+    .cookie("teamToken", token, {
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+      maxAge: 30 * 24 * 3600 * 1000,
+    })
       .json({
         team: {
           id: team._id,
