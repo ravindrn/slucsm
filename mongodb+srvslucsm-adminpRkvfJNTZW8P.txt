@@ -7,3 +7,14 @@ OEJyOSVYs8KllsY2
 
 
 mongodb+srv://slucsmadmin:OEJyOSVYs8KllsY2@slucsm-cluster.kax4p0d.mongodb.net/slucsm?retryWrites=true&w=majority&appName=slucsm-cluster
+
+
+Cloud name	
+tziy9ujz
+API key	
+498325377291838
+API secret	
+FTjCkRX_UIilIGKy0m_yca7nFOQ
+
+API environment variable	
+CLOUDINARY_URL=cloudinary://498325377291838:FTjCkRX_UIilIGKy0m_yca7nFOQ@tziy9ujz

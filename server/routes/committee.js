@@ -62,7 +62,7 @@ router.post("/", protect, upload.single("photo"), async (req, res) => {
       body.order = Number(body.order) || 0;
     }
 
-    if (req.file) body.photo = `/uploads/${req.file.filename}`;
+    if (req.file) body.photo = req.file.path;
 
     /* Auto-derive initials if not provided */
     if (!body.initials && body.name) {

@@ -1,28 +1,35 @@
 import express from "express";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import dotenv from "dotenv";
 import Media from "../models/Media.js";
 import Event from "../models/Event.js";
 import { protect } from "../middleware/auth.js";
 
+dotenv.config();
+
 const router = express.Router();
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDir = path.join(__dirname, "..", "uploads");
 
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+/* ---------- Cloudinary config ---------- */
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-/* ---------- MULTER ---------- */
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) =>
-    cb(
-      null,
-      `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.originalname
-        .replace(/\s+/g, "_")
-        .replace(/[^\w.\-]/g, "")}`
-    ),
+/* ---------- Storage ---------- */
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: async (_req, file) => ({
+    folder: "slucsm",
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif", "svg"],
+    transformation: [{ quality: "auto", fetch_format: "auto" }],
+    public_id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.originalname
+      .replace(/\.[^.]+$/, "")
+      .replace(/\s+/g, "_")
+      .replace(/[^\w\-]/g, "")}`,
+  }),
 });
 
 const upload = multer({
@@ -36,11 +43,6 @@ const upload = multer({
 
 /* ============================================================
    GET /api/media
-   Query params:
-     eventId=<id>      → filter by event (or "global" for null)
-     search=<string>   → filename filter
-     sort=<newest|oldest|name|size>
-     limit, skip       → pagination
    ============================================================ */
 router.get("/", protect, async (req, res) => {
   try {
@@ -73,10 +75,7 @@ router.get("/", protect, async (req, res) => {
 
     res.json({
       files,
-      stats: {
-        count: total,
-        totalSize: totalSizeResult[0]?.total || 0,
-      },
+      stats: { count: total, totalSize: totalSizeResult[0]?.total || 0 },
     });
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -85,7 +84,6 @@ router.get("/", protect, async (req, res) => {
 
 /* ============================================================
    GET /api/media/stats
-   Returns per-event counts + sizes — powers the filter dropdown
    ============================================================ */
 router.get("/stats", protect, async (_req, res) => {
   try {
@@ -99,10 +97,7 @@ router.get("/stats", protect, async (_req, res) => {
       },
     ]);
 
-    /* Attach event details */
-    const eventIds = perEvent
-      .map((p) => p._id)
-      .filter(Boolean); // exclude null (global)
+    const eventIds = perEvent.map((p) => p._id).filter(Boolean);
     const events = await Event.find({ _id: { $in: eventIds } }).select(
       "title slug status"
     );
@@ -136,10 +131,6 @@ router.get("/stats", protect, async (_req, res) => {
 
 /* ============================================================
    POST /api/media
-   Body (multipart):
-     files[]  → the images
-     eventId  → optional event to attach them to
-     tag      → optional label
    ============================================================ */
 router.post("/", protect, upload.array("files", 30), async (req, res) => {
   try {
@@ -149,7 +140,6 @@ router.post("/", protect, upload.array("files", 30), async (req, res) => {
 
     const { eventId = "", tag = "" } = req.body;
 
-    /* If eventId is provided, verify it exists */
     let resolvedEventId = null;
     if (eventId && eventId !== "global") {
       const exists = await Event.findById(eventId).select("_id");
@@ -161,9 +151,9 @@ router.post("/", protect, upload.array("files", 30), async (req, res) => {
 
     const docs = await Media.insertMany(
       req.files.map((f) => ({
-        filename: f.filename,
+        filename: f.filename,           // Cloudinary public_id
         originalName: f.originalname,
-        url: `/uploads/${f.filename}`,
+        url: f.path,                    // Full Cloudinary URL
         size: f.size,
         mimetype: f.mimetype,
         eventId: resolvedEventId,
@@ -180,7 +170,6 @@ router.post("/", protect, upload.array("files", 30), async (req, res) => {
 
 /* ============================================================
    PUT /api/media/:id
-   Move a file to a different event or update its tag
    ============================================================ */
 router.put("/:id", protect, async (req, res) => {
   try {
@@ -206,17 +195,19 @@ router.put("/:id", protect, async (req, res) => {
 
 /* ============================================================
    DELETE /api/media/:id
-   Removes the DB record AND the file from disk
+   Deletes from DB and Cloudinary
    ============================================================ */
 router.delete("/:id", protect, async (req, res) => {
   try {
     const doc = await Media.findById(req.params.id);
     if (!doc) return res.status(404).json({ message: "Not found" });
 
-    /* Delete from disk */
-    const safe = path.basename(doc.filename);
-    const filePath = path.join(uploadsDir, safe);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    /* Delete from Cloudinary */
+    try {
+      await cloudinary.uploader.destroy(doc.filename);
+    } catch (e) {
+      console.warn("Cloudinary delete failed:", e.message);
+    }
 
     await doc.deleteOne();
     res.json({ ok: true });

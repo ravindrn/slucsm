@@ -159,7 +159,7 @@ export default function AdminLayout() {
    CSS
    ============================================================ */
 const css = `
-html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
+html, body, #root{ margin:0; padding:0; width:100%; height:100%; overflow-x:hidden; }
 *, *::before, *::after{ box-sizing:border-box; }
 
 .admin-shell{
@@ -173,7 +173,8 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   --sidebar-text:#F8F4E9;
 
   display:flex;
-  min-height:100vh;
+  height:100vh;               /* fixed to viewport height */
+  overflow:hidden;            /* no page-level scroll */
   background:var(--ivory);
   font-family:'Inter',sans-serif;
   color:var(--ink);
@@ -186,10 +187,9 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   color:var(--sidebar-text);
   display:flex; flex-direction:column;
   padding:22px 16px;
-  position:sticky; top:0;
-  height:100vh;
+  height:100vh;               /* matches shell */
   flex-shrink:0;
-  overflow-y:auto;
+  overflow-y:auto;            /* scroll inside if its content overflows */
 }
 .admin-brand{
   display:flex; align-items:center; gap:10px;
@@ -199,6 +199,7 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   padding:4px 8px 22px;
   border-bottom:1px solid rgba(248,244,233,0.12);
   margin-bottom:18px;
+  flex-shrink:0;
 }
 .admin-brand img{
   width:36px; height:36px; border-radius:50%;
@@ -288,6 +289,7 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   border-top:1px solid rgba(248,244,233,0.12);
   padding-top:16px;
   margin-top:16px;
+  flex-shrink:0;
 }
 .admin-user{
   display:flex; align-items:center; gap:10px;
@@ -335,20 +337,30 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 .admin-main{
   flex:1;
   padding:32px 40px;
+  overflow-y:auto;            /* main scrolls independently */
   overflow-x:auto;
   min-width:0;
+  height:100vh;
 }
 
 /* ---------- RESPONSIVE ---------- */
 @media (max-width:820px){
-  .admin-shell{ flex-direction:column; }
+  .admin-shell{
+    flex-direction:column;
+    height:auto;
+    overflow:visible;
+  }
   .admin-sidebar{
-    width:100%; height:auto;
-    position:relative;
+    width:100%;
+    height:auto;
+    position:sticky;
+    top:0;
+    z-index:30;
     flex-direction:row;
     align-items:center;
     padding:12px 16px;
     overflow-x:auto;
+    overflow-y:visible;
   }
   .admin-brand{ padding:0; border:none; margin:0; flex-shrink:0; }
   .admin-brand span{ display:none; }
@@ -384,6 +396,6 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   .admin-sidebar-footer{ border:none; margin:0; padding:0; }
   .admin-user-info{ display:none; }
   .admin-logout{ padding:6px 10px; font-size:0.75rem; }
-  .admin-main{ padding:24px 18px; }
+  .admin-main{ padding:24px 18px; height:auto; overflow:visible; }
 }
 `;

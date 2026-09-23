@@ -13,7 +13,7 @@ router.post("/", teamAuth, upload.single("proof"), async (req, res) => {
     const task = await Task.findById(taskId);
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    const proof = req.file ? `/uploads/${req.file.filename}` : "";
+    const proof = req.file ? req.file.path : "";
 
     const sub = await Submission.findOneAndUpdate(
       { teamId: req.team.teamId, taskId },
