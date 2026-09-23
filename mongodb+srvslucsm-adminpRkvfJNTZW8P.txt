@@ -1,0 +1,9 @@
+mongodb+srv://slucsm-admin:lVgyFQV4LQbJWyaQ@slucsm-cluster.kax4p0d.mongodb.net/?appName=slucsm-cluster
+
+mongodb://slucsm-admin:lVgyFQV4LQbJWyaQ@ac-iklhufw-shard-00-00.kax4p0d.mongodb.net:27017,ac-iklhufw-shard-00-01.kax4p0d.mongodb.net:27017,ac-iklhufw-shard-00-02.kax4p0d.mongodb.net:27017/?ssl=true&replicaSet=atlas-jfeq3f-shard-0&authSource=admin&appName=slucsm-cluster
+
+
+OEJyOSVYs8KllsY2
+
+
+mongodb+srv://slucsmadmin:OEJyOSVYs8KllsY2@slucsm-cluster.kax4p0d.mongodb.net/slucsm?retryWrites=true&w=majority&appName=slucsm-cluster
