@@ -21,7 +21,6 @@ function generateTeamCode(name) {
   return `TEAM-${num}-${random}`;
 }
 
-/* Helper to build a guaranteed-unique code */
 async function uniqueTeamCode(name) {
   for (let i = 0; i < 5; i++) {
     const candidate = generateTeamCode(name);
@@ -59,7 +58,7 @@ router.post("/login", async (req, res) => {
     res
       .cookie("teamToken", token, {
         httpOnly: true,
-        sameSite: "none",
+        sameSite: "lax",        // ← first-party via Vercel proxy
         secure: true,
         maxAge: 30 * 24 * 3600 * 1000,
       })
@@ -90,14 +89,12 @@ router.get("/me", teamAuth, async (req, res) => {
     const team = await Team.findById(req.team.teamId).select("-passwordHash");
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    /* All active tasks for this event */
     const allTasks = await Task.find({
       eventId: team.eventId,
       active: true,
       $or: [{ assignedTo: { $size: 0 } }, { assignedTo: team._id }],
     }).sort("order");
 
-    /* All submissions for this team */
     const submissions = await Submission.find({
       teamId: team._id,
     }).populate(
@@ -105,14 +102,12 @@ router.get("/me", teamAuth, async (req, res) => {
       "title points pointsPerItem submissionType maxFiles allowVideo order"
     );
 
-    /* Compute unlock state */
     const { unlocked } = computeTaskUnlocks(
       allTasks,
       submissions,
       team.unlockedOverride || []
     );
 
-    /* Return full data for unlocked tasks, minimal for locked */
     const tasks = allTasks.map((t) => {
       const taskId = String(t._id);
       if (unlocked.has(taskId)) {
@@ -138,7 +133,7 @@ router.get("/me", teamAuth, async (req, res) => {
 });
 
 /* ============================================================
-   PUBLIC: lookup a team by its teamCode (for QR scan landing)
+   PUBLIC: lookup a team by teamCode (QR scan landing)
    ============================================================ */
 router.get("/by-code/:code", async (req, res) => {
   try {
@@ -169,14 +164,12 @@ router.get("/event/:eventId", protect, async (req, res) => {
 });
 
 /* ============================================================
-   ADMIN: create team
-   Auto-generates a unique teamCode
+   ADMIN: create team (auto-generates teamCode)
    ============================================================ */
 router.post("/", protect, async (req, res) => {
   try {
     const { eventId, name, username, password, members, color } = req.body;
     const passwordHash = await bcrypt.hash(password, 10);
-
     const teamCode = await uniqueTeamCode(name);
 
     const team = await Team.create({
@@ -231,7 +224,7 @@ router.delete("/:id", protect, async (req, res) => {
 });
 
 /* ============================================================
-   ADMIN: regenerate team code (if it got lost or leaked)
+   ADMIN: regenerate team code
    ============================================================ */
 router.put("/:id/regenerate-code", protect, async (req, res) => {
   try {
@@ -250,7 +243,6 @@ router.put("/:id/regenerate-code", protect, async (req, res) => {
 
 /* ============================================================
    ADMIN: unlock specific tasks for a team
-   Body: { taskIds: [...] }   → replaces the current override list
    ============================================================ */
 router.put("/:id/unlock", protect, async (req, res) => {
   try {
@@ -268,7 +260,7 @@ router.put("/:id/unlock", protect, async (req, res) => {
 });
 
 /* ============================================================
-   ADMIN: unlock ALL tasks for a team (bypass sequence)
+   ADMIN: unlock ALL tasks for a team
    ============================================================ */
 router.put("/:id/unlock-all", protect, async (req, res) => {
   try {
@@ -290,7 +282,7 @@ router.put("/:id/unlock-all", protect, async (req, res) => {
 });
 
 /* ============================================================
-   ADMIN: reset unlocks for a team (back to natural sequence)
+   ADMIN: reset unlocks for a team
    ============================================================ */
 router.put("/:id/lock-all", protect, async (req, res) => {
   try {
