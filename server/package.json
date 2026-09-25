@@ -10,7 +10,8 @@
     "seed": "node utils/seed.js",
     "seed:games": "node utils/seedGames.js",
     "migrate:media": "node utils/migrateMedia.js",
-    "migrate:cloudinary": "node utils/migrateToCloudinary.js"
+    "migrate:cloudinary": "node utils/migrateToCloudinary.js",
+    "backfill:codes": "node utils/backfillTeamCodes.js"
   },
   "keywords": [],
   "author": "",

@@ -11,6 +11,27 @@ import { computeTaskUnlocks } from "../utils/taskUnlock.js";
 const router = express.Router();
 
 /* ============================================================
+   Generate a unique team code
+   Format: TEAM-XX-XXXX (e.g. TEAM-01-A7K3)
+   ============================================================ */
+function generateTeamCode(name) {
+  const numMatch = String(name || "").match(/\d+/);
+  const num = numMatch ? numMatch[0].padStart(2, "0") : "XX";
+  const random = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `TEAM-${num}-${random}`;
+}
+
+/* Helper to build a guaranteed-unique code */
+async function uniqueTeamCode(name) {
+  for (let i = 0; i < 5; i++) {
+    const candidate = generateTeamCode(name);
+    const exists = await Team.findOne({ teamCode: candidate });
+    if (!exists) return candidate;
+  }
+  return `TEAM-${Date.now().toString(36).toUpperCase()}`;
+}
+
+/* ============================================================
    TEAM LOGIN
    ============================================================ */
 router.post("/login", async (req, res) => {
@@ -48,6 +69,7 @@ router.post("/login", async (req, res) => {
           name: team.name,
           color: team.color,
           totalScore: team.totalScore,
+          teamCode: team.teamCode,
         },
         token,
       });
@@ -116,7 +138,28 @@ router.get("/me", teamAuth, async (req, res) => {
 });
 
 /* ============================================================
-   ADMIN: manage teams
+   PUBLIC: lookup a team by its teamCode (for QR scan landing)
+   ============================================================ */
+router.get("/by-code/:code", async (req, res) => {
+  try {
+    const team = await Team.findOne({
+      teamCode: req.params.code.toUpperCase(),
+    })
+      .select("name color teamCode totalScore eventId active")
+      .populate("eventId", "title slug when place status");
+
+    if (!team) return res.status(404).json({ message: "Team not found" });
+    if (!team.active)
+      return res.status(403).json({ message: "This team is inactive" });
+
+    res.json(team);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
+/* ============================================================
+   ADMIN: list teams for an event
    ============================================================ */
 router.get("/event/:eventId", protect, async (req, res) => {
   const teams = await Team.find({ eventId: req.params.eventId }).select(
@@ -125,10 +168,17 @@ router.get("/event/:eventId", protect, async (req, res) => {
   res.json(teams);
 });
 
+/* ============================================================
+   ADMIN: create team
+   Auto-generates a unique teamCode
+   ============================================================ */
 router.post("/", protect, async (req, res) => {
   try {
     const { eventId, name, username, password, members, color } = req.body;
     const passwordHash = await bcrypt.hash(password, 10);
+
+    const teamCode = await uniqueTeamCode(name);
+
     const team = await Team.create({
       eventId,
       name,
@@ -136,19 +186,25 @@ router.post("/", protect, async (req, res) => {
       passwordHash,
       members: members || [],
       color: color || "#B8912F",
+      teamCode,
     });
+
     res.status(201).json({
       id: team._id,
       name: team.name,
       username: team.username,
       members: team.members,
       color: team.color,
+      teamCode: team.teamCode,
     });
   } catch (e) {
     res.status(400).json({ message: e.message });
   }
 });
 
+/* ============================================================
+   ADMIN: update team
+   ============================================================ */
 router.put("/:id", protect, async (req, res) => {
   try {
     const updates = { ...req.body };
@@ -165,10 +221,31 @@ router.put("/:id", protect, async (req, res) => {
   }
 });
 
+/* ============================================================
+   ADMIN: delete team + their submissions
+   ============================================================ */
 router.delete("/:id", protect, async (req, res) => {
   await Team.findByIdAndDelete(req.params.id);
   await Submission.deleteMany({ teamId: req.params.id });
   res.json({ ok: true });
+});
+
+/* ============================================================
+   ADMIN: regenerate team code (if it got lost or leaked)
+   ============================================================ */
+router.put("/:id/regenerate-code", protect, async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.id);
+    if (!team) return res.status(404).json({ message: "Not found" });
+
+    const teamCode = await uniqueTeamCode(team.name);
+    team.teamCode = teamCode;
+    await team.save();
+
+    res.json({ ok: true, teamCode: team.teamCode });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
 });
 
 /* ============================================================

@@ -24,6 +24,15 @@ const TeamSchema = new mongoose.Schema(
     totalScore: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
 
+    /* ---------- UNIQUE TEAM CODE FOR QR ---------- */
+    teamCode: {
+      type: String,
+      unique: true,
+      sparse: true,        // allows existing docs without the field
+      uppercase: true,
+      trim: true,
+    },
+
     /* ---------- SEQUENTIAL UNLOCK OVERRIDES ---------- */
     unlockedOverride: [{ type: mongoose.Schema.Types.ObjectId, ref: "Task" }],
   },

@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import Task from "../models/Task.js";
 import Submission from "../models/Submission.js";
 import { protect, teamAuth } from "../middleware/auth.js";
+import Team from "../models/Team.js";
 
 const router = express.Router();
 
@@ -120,6 +121,81 @@ router.get("/tasks/:eventId", protect, async (req, res) => {
     active: true,
   }).sort("order");
   res.json(tasks);
+});
+
+
+/* ============================================================
+   TEAM QR — PNG stream (admin)
+   ============================================================ */
+router.get("/team/:teamId", protect, async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.teamId).populate(
+      "eventId",
+      "title"
+    );
+    if (!team) return res.status(404).json({ message: "Team not found" });
+    if (!team.teamCode) {
+      return res
+        .status(400)
+        .json({ message: "This team has no code yet" });
+    }
+
+    const baseUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const scanUrl = `${baseUrl}/team/${encodeURIComponent(team.teamCode)}`;
+
+    const png = await QRCode.toBuffer(scanUrl, {
+      errorCorrectionLevel: "M",
+      type: "png",
+      margin: 2,
+      width: 512,
+      color: { dark: "#1B2A4A", light: "#FFFDF8" },
+    });
+
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="team-${team.teamCode}.png"`
+    );
+    res.send(png);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
+/* ============================================================
+   TEAM QR — JSON preview with data URL (admin)
+   ============================================================ */
+router.get("/team-preview/:teamId", protect, async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.teamId).populate(
+      "eventId",
+      "title when place"
+    );
+    if (!team || !team.teamCode) {
+      return res.status(404).json({ message: "QR not available" });
+    }
+
+    const baseUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const scanUrl = `${baseUrl}/team/${encodeURIComponent(team.teamCode)}`;
+
+    const dataUrl = await QRCode.toDataURL(scanUrl, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 512,
+      color: { dark: "#1B2A4A", light: "#FFFDF8" },
+    });
+
+    res.json({
+      dataUrl,
+      scanUrl,
+      teamCode: team.teamCode,
+      teamName: team.name,
+      teamColor: team.color || "#B8912F",
+      eventTitle: team.eventId?.title || "",
+    });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
 });
 
 export default router;
