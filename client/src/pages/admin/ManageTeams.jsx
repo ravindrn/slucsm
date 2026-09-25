@@ -18,6 +18,10 @@ export default function ManageTeams() {
   const [editingId, setEditingId] = useState(null);
   const [err, setErr] = useState("");
 
+  /* QR modal state */
+  const [qrTeam, setQrTeam] = useState(null);
+  const [qrData, setQrData] = useState(null);
+
   /* Load events */
   useEffect(() => {
     (async () => {
@@ -88,6 +92,103 @@ export default function ManageTeams() {
     setTeams((list) => list.filter((x) => x._id !== t._id));
   };
 
+  /* ---------- QR ---------- */
+  const openQr = async (team) => {
+    try {
+      const { data } = await api.get(`/qrcodes/team-preview/${team._id}`);
+      setQrData(data);
+      setQrTeam(team);
+    } catch (e) {
+      alert(e.response?.data?.message || "Could not load QR");
+    }
+  };
+
+  const closeQr = () => {
+    setQrTeam(null);
+    setQrData(null);
+  };
+
+  const downloadQr = () => {
+    if (!qrData) return;
+    const link = document.createElement("a");
+    link.href = qrData.dataUrl;
+    link.download = `team-${qrData.teamCode}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const printQr = () => {
+    if (!qrData || !qrTeam) return;
+    const w = window.open("", "_blank", "width=500,height=750");
+    if (!w) {
+      alert("Popup blocked. Please allow popups for this site.");
+      return;
+    }
+    const color = qrData.teamColor || "#B8912F";
+    w.document.write(`
+      <html>
+        <head>
+          <title>QR - ${qrData.teamName}</title>
+          <style>
+            body{
+              font-family:'Inter', system-ui, sans-serif;
+              text-align:center;
+              padding:40px 20px;
+              color:#1B2A4A;
+              background:#FFFDF8;
+            }
+            .color-bar{
+              position:fixed; top:0; left:0; right:0;
+              height:14px; background:${color};
+            }
+            h1{
+              font-family:'Cormorant Garamond', Georgia, serif;
+              font-size:2.2rem;
+              margin:0 0 6px;
+            }
+            .event{
+              font-size:0.95rem;
+              color:#5a6380;
+              margin:0 0 20px;
+            }
+            .code{
+              font-family:monospace;
+              background:#F8F4E9;
+              padding:10px 22px;
+              border-radius:6px;
+              display:inline-block;
+              font-weight:700;
+              color:#B8912F;
+              letter-spacing:0.1em;
+              margin-bottom:26px;
+              font-size:1.1rem;
+            }
+            img{ width:360px; height:360px; }
+            .hint{
+              margin-top:28px;
+              font-size:0.85rem;
+              color:#7b8399;
+            }
+            @media print {
+              body { padding:20px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="color-bar"></div>
+          <h1>${qrData.teamName}</h1>
+          ${qrData.eventTitle ? `<p class="event">${qrData.eventTitle}</p>` : ""}
+          <div class="code">${qrData.teamCode}</div>
+          <img src="${qrData.dataUrl}" alt="QR" />
+          <p class="hint">Scan to verify team</p>
+          <script>window.onload = () => setTimeout(() => window.print(), 300);</script>
+        </body>
+      </html>
+    `);
+    w.document.close();
+  };
+
   if (loading) return <p>Loading…</p>;
 
   return (
@@ -98,7 +199,8 @@ export default function ManageTeams() {
         <div>
           <h1>Teams</h1>
           <p className="mt-sub">
-            Create teams and give each one a username + password for the team portal.
+            Create teams, assign credentials, and generate QR codes for check-in
+            and identification.
           </p>
         </div>
         <select
@@ -195,10 +297,25 @@ export default function ManageTeams() {
                     <strong>{t.name}</strong>
                     <span className="mt-team-user">
                       username: <code>{t.username}</code>
+                      {t.teamCode && (
+                        <>
+                          {" · "}
+                          code: <code>{t.teamCode}</code>
+                        </>
+                      )}
                     </span>
                     <span className="mt-team-score">{t.totalScore} pts</span>
                   </div>
                   <div className="mt-team-actions">
+                    {t.teamCode && (
+                      <button
+                        className="mt-btn qr"
+                        onClick={() => openQr(t)}
+                        title="Generate team QR"
+                      >
+                        🔳 QR
+                      </button>
+                    )}
                     <button className="mt-btn" onClick={() => edit(t)}>
                       Edit
                     </button>
@@ -212,6 +329,43 @@ export default function ManageTeams() {
           )}
         </div>
       </div>
+
+      {/* ---------- QR MODAL ---------- */}
+      {qrTeam && qrData && (
+        <div className="mt-modal-overlay" onClick={closeQr}>
+          <div className="mt-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="mt-modal-close" onClick={closeQr}>×</button>
+
+            <div
+              className="mt-modal-bar"
+              style={{ background: qrData.teamColor || "#B8912F" }}
+            />
+
+            <h2>{qrData.teamName}</h2>
+            <p className="mt-modal-code">{qrData.teamCode}</p>
+
+            {qrData.eventTitle && (
+              <p className="mt-modal-event">{qrData.eventTitle}</p>
+            )}
+
+            <img src={qrData.dataUrl} alt="QR code" className="mt-qr-img" />
+
+            <p className="mt-modal-url">
+              <small>{qrData.scanUrl}</small>
+            </p>
+
+            <div className="mt-modal-actions">
+              <button className="mt-btn" onClick={closeQr}>Close</button>
+              <button className="mt-btn primary" onClick={downloadQr}>
+                ⬇ Download PNG
+              </button>
+              <button className="mt-btn primary" onClick={printQr}>
+                🖨 Print
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -226,7 +380,7 @@ const css = `
   font-family:'Cormorant Garamond', serif;
   font-size:2rem; font-weight:600; margin:0 0 6px;
 }
-.mt-sub{ color:#5a6380; font-size:0.9rem; margin:0; }
+.mt-sub{ color:#5a6380; font-size:0.9rem; margin:0; max-width:560px; }
 
 .mt-event-select{
   padding:9px 14px; border-radius:4px;
@@ -291,6 +445,12 @@ const css = `
 .mt-btn.danger{ color:#b23b3b; border-color:#f0c8c2; }
 .mt-btn.danger:hover{ background:#fff2f0; }
 .mt-btn.ghost{ background:transparent; }
+.mt-btn.qr{
+  background:#F8F4E9; color:#B8912F;
+  border-color:rgba(184,145,47,0.3);
+  font-weight:600;
+}
+.mt-btn.qr:hover{ background:#B8912F; color:#fff; border-color:#B8912F; }
 
 .mt-error{
   background:#fff2f0; color:#b23b3b; border:1px solid #f0c8c2;
@@ -325,13 +485,87 @@ const css = `
   min-width:0;
 }
 .mt-team-info strong{ font-size:1rem; }
-.mt-team-user{ font-size:0.8rem; color:#7b8399; }
+.mt-team-user{ font-size:0.78rem; color:#7b8399; }
 .mt-team-user code{
   background:#F8F4E9; padding:1px 6px; border-radius:3px;
 }
 .mt-team-score{
   font-size:0.82rem; color:#B8912F; font-weight:600;
 }
-.mt-team-actions{ display:flex; gap:6px; }
+.mt-team-actions{ display:flex; gap:6px; flex-wrap:wrap; }
 .hint{ color:#7b8399; font-weight:400; font-size:0.75rem; }
+
+/* ---------- QR MODAL ---------- */
+.mt-modal-overlay{
+  position:fixed; inset:0; z-index:100;
+  background:rgba(27,42,74,0.6);
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+  backdrop-filter:blur(3px);
+}
+.mt-modal{
+  background:#FFFDF8;
+  border-radius:10px;
+  max-width:420px; width:100%;
+  padding:32px 32px 28px;
+  position:relative;
+  text-align:center;
+  font-family:'Inter',sans-serif;
+  color:#1B2A4A;
+  box-shadow:0 30px 80px rgba(27,42,74,0.35);
+  max-height:92vh; overflow-y:auto;
+  overflow:hidden;
+}
+.mt-modal-bar{
+  position:absolute; top:0; left:0; right:0;
+  height:6px;
+}
+.mt-modal-close{
+  position:absolute; top:10px; right:14px;
+  width:32px; height:32px;
+  border:none; background:transparent;
+  font-size:1.5rem; cursor:pointer;
+  color:#5a6380;
+}
+.mt-modal-close:hover{ color:#b23b3b; }
+.mt-modal h2{
+  font-family:'Cormorant Garamond', serif;
+  font-size:1.6rem; font-weight:600;
+  margin:6px 0 6px;
+}
+.mt-modal-code{
+  font-family:'Courier New', monospace;
+  background:#F8F4E9;
+  padding:6px 14px;
+  border-radius:3px;
+  display:inline-block;
+  font-weight:700;
+  color:#B8912F;
+  letter-spacing:0.06em;
+  margin:0 0 8px;
+  font-size:1.05rem;
+}
+.mt-modal-event{
+  font-size:0.85rem; color:#5a6380;
+  margin:0 0 18px;
+}
+.mt-qr-img{
+  width:100%; max-width:260px;
+  margin:0 auto 14px;
+  border:1px solid rgba(27,42,74,0.14);
+  border-radius:6px;
+  display:block;
+  padding:10px;
+  background:#fff;
+}
+.mt-modal-url{
+  font-size:0.72rem; color:#7b8399;
+  word-break:break-all;
+  margin:0 0 18px;
+  line-height:1.4;
+}
+.mt-modal-actions{
+  display:flex; gap:8px; justify-content:center;
+  flex-wrap:wrap;
+}
 `;

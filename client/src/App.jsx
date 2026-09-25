@@ -26,6 +26,7 @@ import ManageUsers from "./pages/admin/ManageUsers";
 
 import TeamLogin from "./pages/team/TeamLogin";
 import TeamDashboard from "./pages/team/TeamDashboard";
+import TeamVerify from "./pages/team/TeamVerify";
 import ScanLanding from "./pages/team/ScanLanding";
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/scan/:code" element={<ScanLanding />} />
+          <Route path="/team/:code" element={<TeamVerify />} />
 
           {/* ---------- EVENT PAGES ---------- */}
           <Route path="/events/live/:slug" element={<LiveEvent />} />
