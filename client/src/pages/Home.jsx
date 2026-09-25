@@ -84,7 +84,6 @@ export default function Home() {
     <div className="slucsm">
       <style>{css}</style>
 
-      {/* ---------- ANNOUNCEMENT BANNER ---------- */}
       {banner?.active && banner?.text && (
         <div className="announcement-banner">{banner.text}</div>
       )}
@@ -126,10 +125,7 @@ export default function Home() {
           <p className="eyebrow">{hero.eyebrow}</p>
           <h1>
             {hero.title.split("\n").map((line, i) => (
-              <span key={i}>
-                {line}
-                {i < hero.title.split("\n").length - 1 && <br />}
-              </span>
+              <span key={i} className="hero-line">{line}</span>
             ))}
           </h1>
           <p>{hero.subtitle}</p>
@@ -447,7 +443,7 @@ html, body, #root{
 }
 .slucsm .hero-content{
   position:relative; z-index:1;
-  max-width:820px; margin:0 auto;
+  max-width:680px; margin:0 auto;
   width:100%;
   padding:20px 6vw 10px;
 }
@@ -461,11 +457,10 @@ html, body, #root{
   .slucsm .hero-content{ padding:16px 6vw 8px; }
 }
 .slucsm .hero .eyebrow{ color:var(--maroon); font-size:0.95rem; margin-bottom:10px; letter-spacing:0.02em; }
-.slucsm .hero h1{
-  font-size:clamp(2rem,5vw,3.6rem);
-  font-weight:600; margin:0 0 20px;
-  line-height:1.1;
-  white-space:nowrap;      /* ← forces each line to stay as one */
+.slucsm .hero h1{ font-size:clamp(1.9rem,4.8vw,3.6rem); font-weight:600; margin:0 0 20px; line-height:1.12; max-width:100%; }
+.slucsm .hero h1 .hero-line{ display:block; white-space:nowrap; }
+@media (max-width:520px){
+  .slucsm .hero h1 .hero-line{ white-space:normal; }
 }
 .slucsm .hero p{ max-width:520px; margin:0 auto 34px; font-size:1.05rem; color:#2f3a58; }
 .slucsm .btnrow{ display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
@@ -540,34 +535,69 @@ html, body, #root{
 .slucsm .spiritual-section{
   background:linear-gradient(180deg, rgba(184,145,47,0.06), rgba(184,145,47,0.02));
 }
+
+/* Grid for spiritual leaders — always centered, sized to fit */
 .slucsm .committee.spiritual{
-  max-width:820px;
-  margin-left:auto;
-  margin-right:auto;
-  grid-template-columns:repeat(auto-fit, minmax(220px, 240px));
+  display:flex;
+  flex-wrap:wrap;
   justify-content:center;
+  align-items:flex-start;
+  gap:38px 30px;
+  max-width:900px;
+  margin:0 auto;
 }
+
+/* Each spiritual member card — centered content, no width stretch */
+.slucsm .committee.spiritual .member{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  width:200px;
+  max-width:100%;
+}
+
+/* Bigger, gold-ringed avatars for spiritual leaders */
 .slucsm .avatar.spiritual{
   border:2px solid var(--gold);
   box-shadow:0 6px 24px rgba(184,145,47,0.22);
   width:120px; height:120px;
   font-size:1.9rem;
 }
+
 .slucsm .committee.spiritual .member h3{
   font-size:1.3rem;
+  margin:0 0 6px;
 }
+
+.slucsm .committee.spiritual .member .role{
+  font-size:0.9rem;
+  margin:0 0 4px;
+}
+
+/* ---------- Mobile: strict centering ---------- */
 @media (max-width:640px){
   .slucsm .committee.spiritual{
-    grid-template-columns:1fr 1fr;
-    gap:26px 16px;
+    gap:32px 20px;
+    padding:0 4px;
+  }
+  .slucsm .committee.spiritual .member{
+    width:100%;
+    max-width:280px;
+    margin-left:auto;
+    margin-right:auto;
   }
   .slucsm .avatar.spiritual{
-    width:96px; height:96px;
+    width:104px; height:104px;
+    font-size:1.7rem;
+    margin-left:auto;
+    margin-right:auto;
   }
-}
-@media (max-width:420px){
-  .slucsm .committee.spiritual{
-    grid-template-columns:1fr;
+  .slucsm .committee.spiritual .member h3{
+    font-size:1.2rem;
+  }
+  .slucsm .committee.spiritual .member .role{
+    font-size:0.85rem;
   }
 }
 
