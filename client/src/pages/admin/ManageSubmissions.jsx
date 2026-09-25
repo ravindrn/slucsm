@@ -34,18 +34,30 @@ export default function ManageSubmissions() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
-  const update = async (sub, status, score) => {
+  const update = async (sub, status, score, itemsScored) => {
     try {
-      await api.put(`/submissions/${sub._id}`, { status, score });
+      const body = { status };
+      if (score !== undefined) body.score = score;
+      if (itemsScored) body.itemsScored = itemsScored;
+      await api.put(`/submissions/${sub._id}`, body);
       await load();
     } catch (e) {
       alert(e.response?.data?.message || "Update failed");
     }
   };
 
-  const approve = (s) => update(s, "approved", s.taskId?.points ?? s.score);
+  /* Compute the score that will be awarded on approve */
+  const computeApproveScore = (s) => {
+    if (s.taskId?.pointsPerItem > 0 && s.files?.length) {
+      return s.taskId.pointsPerItem * s.files.length;
+    }
+    return s.taskId?.points ?? 0;
+  };
+
+  const approve = (s) => update(s, "approved", computeApproveScore(s));
   const reject = (s) => update(s, "rejected", 0);
 
   const filtered =
@@ -100,74 +112,118 @@ export default function ManageSubmissions() {
             <p className="ms-empty">No submissions in this filter.</p>
           ) : (
             <ul className="ms-list">
-              {filtered.map((s) => (
-                <li key={s._id} className={`ms-item ${s.status}`}>
-                  <div className="ms-item-head">
-                    <div className="ms-team">
-                      <span
-                        className="ms-dot"
-                        style={{ background: s.teamId?.color || "#B8912F" }}
-                      />
-                      <strong>{s.teamId?.name || "Unknown team"}</strong>
+              {filtered.map((s) => {
+                const isProgress = s.taskId?.submissionType === "progress";
+                const approveScore = computeApproveScore(s);
+                const fileCount = s.files?.length || (s.proof ? 1 : 0);
+
+                return (
+                  <li key={s._id} className={`ms-item ${s.status}`}>
+                    <div className="ms-item-head">
+                      <div className="ms-team">
+                        <span
+                          className="ms-dot"
+                          style={{ background: s.teamId?.color || "#B8912F" }}
+                        />
+                        <strong>{s.teamId?.name || "Unknown team"}</strong>
+                      </div>
+                      <span className={`ms-status ${s.status}`}>{s.status}</span>
                     </div>
-                    <span className={`ms-status ${s.status}`}>{s.status}</span>
-                  </div>
 
-                  <div className="ms-task">
-                    <span className="ms-task-title">
-                      {s.taskId?.title || "Task"}
-                    </span>
-                    <span className="ms-task-pts">
-                      {s.taskId?.points ?? 0} pts
-                    </span>
-                  </div>
+                    <div className="ms-task">
+                      <span className="ms-task-title">
+                        {s.taskId?.title || "Task"}
+                      </span>
+                      <span className="ms-task-pts">
+                        {s.taskId?.pointsPerItem > 0
+                          ? `${s.taskId.pointsPerItem} pts/item`
+                          : `${s.taskId?.points ?? 0} pts`}
+                        {fileCount > 1 && ` · ${fileCount} files`}
+                      </span>
+                    </div>
 
-                  {s.note && <p className="ms-note">📝 {s.note}</p>}
-                  {s.proof && (
-                    <a
-                      href={imgUrl(s.proof)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ms-proof"
-                    >
-                      <img src={imgUrl(s.proof)} alt="proof" />
-                    </a>
-                  )}
+                    {isProgress && (
+                      <p className="ms-progress-hint">
+                        Progress task — each submission is scored separately.
+                      </p>
+                    )}
 
-                  <div className="ms-item-actions">
-                    {s.status !== "approved" && (
-                      <button
-                        className="ms-btn approve"
-                        onClick={() => approve(s)}
-                      >
-                        ✓ Approve ({s.taskId?.points ?? 0} pts)
-                      </button>
+                    {s.note && <p className="ms-note">📝 {s.note}</p>}
+
+                    {/* Multi-file submissions */}
+                    {s.files && s.files.length > 0 && (
+                      <div className="ms-files">
+                        {s.files.map((f, i) => (
+                          <a
+                            key={i}
+                            href={imgUrl(f.url)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ms-file"
+                          >
+                            {f.type === "video" ? (
+                              <div className="ms-video-badge">▶ video</div>
+                            ) : (
+                              <img
+                                src={imgUrl(f.url)}
+                                alt={f.label || `file ${i + 1}`}
+                              />
+                            )}
+                            {f.label && (
+                              <span className="ms-file-label">{f.label}</span>
+                            )}
+                          </a>
+                        ))}
+                      </div>
                     )}
-                    {s.status !== "rejected" && (
-                      <button
-                        className="ms-btn reject"
-                        onClick={() => reject(s)}
+
+                    {/* Legacy single-file */}
+                    {s.proof && !s.files?.length && (
+                      <a
+                        href={imgUrl(s.proof)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ms-proof"
                       >
-                        ✕ Reject
-                      </button>
+                        <img src={imgUrl(s.proof)} alt="proof" />
+                      </a>
                     )}
-                    {s.status === "approved" && (
-                      <button
-                        className="ms-btn ghost"
-                        onClick={() => {
-                          const v = window.prompt(
-                            "Enter new score:",
-                            String(s.score)
-                          );
-                          if (v != null) update(s, "approved", Number(v));
-                        }}
-                      >
-                        Adjust score ({s.score})
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
+
+                    <div className="ms-item-actions">
+                      {s.status !== "approved" && (
+                        <button
+                          className="ms-btn approve"
+                          onClick={() => approve(s)}
+                        >
+                          ✓ Approve ({approveScore} pts)
+                        </button>
+                      )}
+                      {s.status !== "rejected" && (
+                        <button
+                          className="ms-btn reject"
+                          onClick={() => reject(s)}
+                        >
+                          ✕ Reject
+                        </button>
+                      )}
+                      {s.status === "approved" && (
+                        <button
+                          className="ms-btn ghost"
+                          onClick={() => {
+                            const v = window.prompt(
+                              "Enter new score:",
+                              String(s.score)
+                            );
+                            if (v != null) update(s, "approved", Number(v));
+                          }}
+                        >
+                          Adjust score ({s.score})
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -287,19 +343,69 @@ const css = `
   border-top:1px solid rgba(27,42,74,0.06);
   border-bottom:1px solid rgba(27,42,74,0.06);
   margin:8px 0;
+  gap:12px; flex-wrap:wrap;
 }
 .ms-task-title{ font-weight:500; font-size:0.95rem; }
-.ms-task-pts{ font-size:0.85rem; color:#B8912F; font-weight:600; }
+.ms-task-pts{
+  font-size:0.82rem; color:#B8912F; font-weight:600;
+  white-space:nowrap;
+}
+
+.ms-progress-hint{
+  font-size:0.78rem;
+  color:#6b3fa0;
+  background:#F0E5FF;
+  padding:6px 10px;
+  border-radius:3px;
+  margin:8px 0;
+  font-weight:600;
+}
 
 .ms-note{
   margin:10px 0; padding:10px 12px;
   background:#F8F4E9; border-radius:3px;
   font-size:0.88rem; color:#3a4560;
 }
+
+/* Legacy single-file proof */
 .ms-proof img{
   max-width:200px; max-height:200px;
   border-radius:4px; border:1px solid rgba(27,42,74,0.14);
   display:block;
+}
+
+/* Multi-file grid */
+.ms-files{
+  display:flex; flex-wrap:wrap; gap:8px;
+  margin:10px 0;
+}
+.ms-file{
+  display:block;
+  width:80px; height:80px;
+  border-radius:4px;
+  overflow:hidden;
+  border:1px solid rgba(27,42,74,0.14);
+  position:relative;
+  background:#000;
+}
+.ms-file img{
+  width:100%; height:100%;
+  object-fit:cover;
+}
+.ms-video-badge{
+  width:100%; height:100%;
+  display:flex; align-items:center; justify-content:center;
+  background:#1B2A4A; color:#F8F4E9;
+  font-size:0.72rem;
+  text-align:center; padding:4px;
+}
+.ms-file-label{
+  position:absolute; bottom:0; left:0; right:0;
+  background:rgba(0,0,0,0.72);
+  color:#fff; font-size:0.65rem;
+  padding:2px 4px;
+  text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 
 .ms-item-actions{

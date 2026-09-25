@@ -72,6 +72,14 @@ export default function Home() {
   const quote = settings.quote;
   const banner = settings.announcement;
 
+  /* ---------- SPLIT COMMITTEE ---------- */
+  const spiritualLeaders = committee.filter(
+    (m) => m.category === "spiritual"
+  );
+  const otherCommittee = committee.filter(
+    (m) => m.category !== "spiritual"
+  );
+
   return (
     <div className="slucsm">
       <style>{css}</style>
@@ -255,6 +263,37 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ---------- SPIRITUAL LEADERS ---------- */}
+      {spiritualLeaders.length > 0 && (
+        <section id="spiritual-leaders" className="spiritual-section">
+          <div className="motif" />
+          <div className="center">
+            <p className="kicker">Our Spiritual Guides</p>
+            <h2>Spiritual Directors</h2>
+            <p className="lead">
+              The priests and religious who guide the Movement with prayer, counsel
+              and care.
+            </p>
+          </div>
+          <div className="committee spiritual">
+            {spiritualLeaders.map((m) => (
+              <div className="member" key={m._id}>
+                <div className="avatar spiritual">
+                  {m.photo ? (
+                    <img src={imgUrl(m.photo)} alt={m.name} />
+                  ) : (
+                    m.initials || "?"
+                  )}
+                </div>
+                <h3>{m.name}</h3>
+                <p className="role">{m.role}</p>
+                {m.university && <p className="uni">{m.university}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ---------- COMMITTEE ---------- */}
       <section id="committee">
         <div className="motif" />
@@ -267,12 +306,12 @@ export default function Home() {
           </p>
         </div>
         <div className="committee">
-          {committee.length === 0 ? (
+          {otherCommittee.length === 0 ? (
             <p className="committee-empty">
               Committee members will appear here soon.
             </p>
           ) : (
-            committee.map((m) => (
+            otherCommittee.map((m) => (
               <div className="member" key={m._id}>
                 <div className="avatar">
                   {m.photo ? (
@@ -408,7 +447,7 @@ html, body, #root{
 }
 .slucsm .hero-content{
   position:relative; z-index:1;
-  max-width:680px; margin:0 auto;
+  max-width:820px; margin:0 auto;
   width:100%;
   padding:20px 6vw 10px;
 }
@@ -422,7 +461,12 @@ html, body, #root{
   .slucsm .hero-content{ padding:16px 6vw 8px; }
 }
 .slucsm .hero .eyebrow{ color:var(--maroon); font-size:0.95rem; margin-bottom:10px; letter-spacing:0.02em; }
-.slucsm .hero h1{ font-size:clamp(2.2rem,5.6vw,3.8rem); font-weight:600; margin:0 0 20px; line-height:1.08; }
+.slucsm .hero h1{
+  font-size:clamp(2rem,5vw,3.6rem);
+  font-weight:600; margin:0 0 20px;
+  line-height:1.1;
+  white-space:nowrap;      /* ← forces each line to stay as one */
+}
 .slucsm .hero p{ max-width:520px; margin:0 auto 34px; font-size:1.05rem; color:#2f3a58; }
 .slucsm .btnrow{ display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
 .slucsm .btn{ padding:13px 30px; border-radius:2px; text-decoration:none; font-size:0.95rem; font-weight:500; display:inline-block; border:1px solid var(--ink); transition:.25s; }
@@ -491,6 +535,41 @@ html, body, #root{
 .slucsm .read-more{ display:inline-block; font-size:0.9rem; color:var(--gold); text-decoration:none; font-weight:500; margin-top:6px; }
 .slucsm .read-more:hover{ color:var(--maroon); }
 @media (max-width:640px){ .slucsm .event{ grid-template-columns:1fr; gap:8px; } }
+
+/* ==================== SPIRITUAL LEADERS ==================== */
+.slucsm .spiritual-section{
+  background:linear-gradient(180deg, rgba(184,145,47,0.06), rgba(184,145,47,0.02));
+}
+.slucsm .committee.spiritual{
+  max-width:820px;
+  margin-left:auto;
+  margin-right:auto;
+  grid-template-columns:repeat(auto-fit, minmax(220px, 240px));
+  justify-content:center;
+}
+.slucsm .avatar.spiritual{
+  border:2px solid var(--gold);
+  box-shadow:0 6px 24px rgba(184,145,47,0.22);
+  width:120px; height:120px;
+  font-size:1.9rem;
+}
+.slucsm .committee.spiritual .member h3{
+  font-size:1.3rem;
+}
+@media (max-width:640px){
+  .slucsm .committee.spiritual{
+    grid-template-columns:1fr 1fr;
+    gap:26px 16px;
+  }
+  .slucsm .avatar.spiritual{
+    width:96px; height:96px;
+  }
+}
+@media (max-width:420px){
+  .slucsm .committee.spiritual{
+    grid-template-columns:1fr;
+  }
+}
 
 /* ==================== COMMITTEE ==================== */
 .slucsm .committee{ display:grid; grid-template-columns:repeat(3,1fr); gap:38px 30px; margin-top:10px; }

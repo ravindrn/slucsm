@@ -6,9 +6,13 @@ import Event from "../models/Event.js";
 import Task from "../models/Task.js";
 import Submission from "../models/Submission.js";
 import { protect, teamAuth } from "../middleware/auth.js";
+import { computeTaskUnlocks } from "../utils/taskUnlock.js";
 
 const router = express.Router();
 
+/* ============================================================
+   TEAM LOGIN
+   ============================================================ */
 router.post("/login", async (req, res) => {
   try {
     const { eventSlug, username, password } = req.body;
@@ -32,12 +36,12 @@ router.post("/login", async (req, res) => {
     );
 
     res
-    .cookie("teamToken", token, {
-      httpOnly: true,
-      sameSite: "none",
-      secure: true,
-      maxAge: 30 * 24 * 3600 * 1000,
-    })
+      .cookie("teamToken", token, {
+        httpOnly: true,
+        sameSite: "none",
+        secure: true,
+        maxAge: 30 * 24 * 3600 * 1000,
+      })
       .json({
         team: {
           id: team._id,
@@ -56,20 +60,54 @@ router.post("/logout", (_req, res) =>
   res.clearCookie("teamToken").json({ ok: true })
 );
 
+/* ============================================================
+   TEAM DASHBOARD
+   ============================================================ */
 router.get("/me", teamAuth, async (req, res) => {
   try {
     const team = await Team.findById(req.team.teamId).select("-passwordHash");
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    const tasks = await Task.find({
+    /* All active tasks for this event */
+    const allTasks = await Task.find({
       eventId: team.eventId,
       active: true,
       $or: [{ assignedTo: { $size: 0 } }, { assignedTo: team._id }],
     }).sort("order");
 
+    /* All submissions for this team */
     const submissions = await Submission.find({
       teamId: team._id,
-    }).populate("taskId", "title points");
+    }).populate(
+      "taskId",
+      "title points pointsPerItem submissionType maxFiles allowVideo order"
+    );
+
+    /* Compute unlock state */
+    const { unlocked } = computeTaskUnlocks(
+      allTasks,
+      submissions,
+      team.unlockedOverride || []
+    );
+
+    /* Return full data for unlocked tasks, minimal for locked */
+    const tasks = allTasks.map((t) => {
+      const taskId = String(t._id);
+      if (unlocked.has(taskId)) {
+        return t.toObject();
+      }
+      return {
+        _id: t._id,
+        title: t.title,
+        points: t.points,
+        pointsPerItem: t.pointsPerItem,
+        order: t.order,
+        submissionType: t.submissionType,
+        maxFiles: t.maxFiles,
+        allowVideo: t.allowVideo,
+        locked: true,
+      };
+    });
 
     res.json({ team, tasks, submissions });
   } catch (e) {
@@ -77,6 +115,9 @@ router.get("/me", teamAuth, async (req, res) => {
   }
 });
 
+/* ============================================================
+   ADMIN: manage teams
+   ============================================================ */
 router.get("/event/:eventId", protect, async (req, res) => {
   const teams = await Team.find({ eventId: req.params.eventId }).select(
     "-passwordHash"
@@ -128,6 +169,64 @@ router.delete("/:id", protect, async (req, res) => {
   await Team.findByIdAndDelete(req.params.id);
   await Submission.deleteMany({ teamId: req.params.id });
   res.json({ ok: true });
+});
+
+/* ============================================================
+   ADMIN: unlock specific tasks for a team
+   Body: { taskIds: [...] }   → replaces the current override list
+   ============================================================ */
+router.put("/:id/unlock", protect, async (req, res) => {
+  try {
+    const { taskIds = [] } = req.body;
+    const team = await Team.findByIdAndUpdate(
+      req.params.id,
+      { unlockedOverride: taskIds },
+      { new: true }
+    ).select("-passwordHash");
+    if (!team) return res.status(404).json({ message: "Not found" });
+    res.json(team);
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
+/* ============================================================
+   ADMIN: unlock ALL tasks for a team (bypass sequence)
+   ============================================================ */
+router.put("/:id/unlock-all", protect, async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.id);
+    if (!team) return res.status(404).json({ message: "Not found" });
+
+    const allTasks = await Task.find({
+      eventId: team.eventId,
+      active: true,
+    }).select("_id");
+
+    team.unlockedOverride = allTasks.map((t) => t._id);
+    await team.save();
+
+    res.json({ ok: true, count: allTasks.length });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
+/* ============================================================
+   ADMIN: reset unlocks for a team (back to natural sequence)
+   ============================================================ */
+router.put("/:id/lock-all", protect, async (req, res) => {
+  try {
+    const team = await Team.findByIdAndUpdate(
+      req.params.id,
+      { unlockedOverride: [] },
+      { new: true }
+    );
+    if (!team) return res.status(404).json({ message: "Not found" });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
 });
 
 export default router;

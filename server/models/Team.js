@@ -18,11 +18,14 @@ const TeamSchema = new mongoose.Schema(
     },
     name: { type: String, required: true },
     username: { type: String, required: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true },   // hashed
+    passwordHash: { type: String, required: true },
     members: [MemberSchema],
-    color: { type: String, default: "#B8912F" },      // team color for UI
+    color: { type: String, default: "#B8912F" },
     totalScore: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
+
+    /* ---------- SEQUENTIAL UNLOCK OVERRIDES ---------- */
+    unlockedOverride: [{ type: mongoose.Schema.Types.ObjectId, ref: "Task" }],
   },
   { timestamps: true }
 );
