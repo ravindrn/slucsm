@@ -13,8 +13,8 @@ import taskRoutes from "./routes/tasks.js";
 import submissionRoutes from "./routes/submissions.js";
 import settingsRoutes from "./routes/settings.js";
 import qrRoutes from "./routes/qrcodes.js";
-import mediaRoutes from "./routes/media.js";
 import committeeRoutes from "./routes/committee.js";
+import mediaRoutes from "./routes/media.js";
 
 dotenv.config();
 
@@ -22,9 +22,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 /* ---------- MIDDLEWARE ---------- */
+const ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "https://slucsm.vercel.app",
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, cb) => {
+      /* Allow requests with no origin (curl, server-to-server, Vercel proxy) */
+      if (!origin) return cb(null, true);
+      if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+      cb(new Error(`CORS blocked: ${origin}`));
+    },
     credentials: true,
   })
 );
@@ -41,8 +52,8 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/qrcodes", qrRoutes);
-app.use("/api/media", mediaRoutes);
 app.use("/api/committee", committeeRoutes);
+app.use("/api/media", mediaRoutes);
 
 app.get("/", (_, res) =>
   res.json({ ok: true, service: "SLUCSM API", version: "1.0.0" })

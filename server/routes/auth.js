@@ -9,7 +9,7 @@ const signToken = (u) =>
   jwt.sign(
     { id: u._id, role: u.role, name: u.name },
     process.env.JWT_SECRET,
-    { expiresIn: "1d" }        // ← shortened from 7d for session timeout
+    { expiresIn: "1d" }
   );
 
 /* ============================================================
@@ -32,9 +32,9 @@ router.post("/login", async (req, res) => {
     res
       .cookie("token", token, {
         httpOnly: true,
-        sameSite: "none",
+        sameSite: "lax",        // ← first-party via Vercel proxy
         secure: true,
-        maxAge: 1 * 24 * 3600 * 1000,   // 1 day to match token
+        maxAge: 1 * 24 * 3600 * 1000,
       })
       .json({ user: { id: user._id, name: user.name, role: user.role } });
   } catch (e) {
@@ -109,7 +109,6 @@ router.put("/users/:id", protect, adminOnly, async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    /* Prevent self-demotion or self-deactivation */
     if (String(user._id) === String(req.user.id)) {
       if (role && role !== "admin") {
         return res
@@ -123,7 +122,6 @@ router.put("/users/:id", protect, adminOnly, async (req, res) => {
       }
     }
 
-    /* Prevent unique email conflict */
     if (email && email !== user.email) {
       const dup = await User.findOne({ email });
       if (dup) return res.status(400).json({ message: "Email already in use" });
@@ -134,7 +132,6 @@ router.put("/users/:id", protect, adminOnly, async (req, res) => {
     if (role !== undefined) user.role = role;
     if (active !== undefined) user.active = active;
 
-    /* Only update password if provided and non-empty */
     if (password && password.length >= 6) {
       user.password = password;
     } else if (password && password.length < 6) {
@@ -171,7 +168,6 @@ router.delete("/users/:id", protect, adminOnly, async (req, res) => {
     const target = await User.findById(req.params.id);
     if (!target) return res.status(404).json({ message: "User not found" });
 
-    /* Prevent deleting the last admin */
     if (target.role === "admin") {
       const adminCount = await User.countDocuments({ role: "admin" });
       if (adminCount <= 1) {
