@@ -13,6 +13,10 @@ export default function Login() {
   const [err, setErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  /* Show timeout banner if redirected here */
+  const showTimeout =
+    new URLSearchParams(window.location.search).get("reason") === "timeout";
+
   /* Already logged in? Go to admin */
   if (user) return <Navigate to={from} replace />;
 
@@ -40,6 +44,12 @@ export default function Login() {
         </div>
         <h1>Admin Panel</h1>
         <p className="login-sub">Sign in to manage events, teams and content.</p>
+
+        {showTimeout && (
+          <div className="login-timeout">
+            Your session expired due to inactivity. Please sign in again.
+          </div>
+        )}
 
         {err && <div className="login-error">{err}</div>}
 
@@ -109,6 +119,18 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   font-size:2rem; font-weight:600; margin:0 0 6px;
 }
 .login-sub{ color:#5a6380; font-size:0.92rem; margin:0 0 26px; }
+
+.login-timeout{
+  background:#FFF4D6;
+  color:#8a6d10;
+  border:1px solid rgba(184,145,47,0.35);
+  padding:10px 14px;
+  border-radius:4px;
+  font-size:0.88rem;
+  margin-bottom:16px;
+  text-align:left;
+  line-height:1.45;
+}
 
 .login-error{
   background:#fff2f0; color:#b23b3b; border:1px solid #f0c8c2;

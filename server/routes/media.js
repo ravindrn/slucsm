@@ -22,14 +22,14 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary,
   params: async (_req, file) => ({
-    folder: "slucsm",
-    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif", "svg"],
-    transformation: [{ quality: "auto", fetch_format: "auto" }],
-    public_id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.originalname
-      .replace(/\.[^.]+$/, "")
-      .replace(/\s+/g, "_")
-      .replace(/[^\w\-]/g, "")}`,
-  }),
+  folder: "slucsm",
+  resource_type: file.mimetype.startsWith("video/") ? "video" : "image",
+  type: "upload",                       // ← ADD
+  access_mode: "public",                // ← ADD
+  allowed_formats: ["jpg", "jpeg", "png", "webp", "gif", "svg"],
+  transformation: [{ quality: "auto", fetch_format: "auto" }],
+  public_id: `...`,
+}),
 });
 
 const upload = multer({

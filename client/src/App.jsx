@@ -3,6 +3,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { TeamProvider } from "./context/TeamContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TeamProtectedRoute from "./components/TeamProtectedRoute";
+import SessionTimer from "./context/SessionTimer";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -21,6 +22,7 @@ import ManageTeams from "./pages/admin/ManageTeams";
 import ManageTasks from "./pages/admin/ManageTasks";
 import ManageSubmissions from "./pages/admin/ManageSubmissions";
 import ManageSettings from "./pages/admin/ManageSettings";
+import ManageUsers from "./pages/admin/ManageUsers";
 
 import TeamLogin from "./pages/team/TeamLogin";
 import TeamDashboard from "./pages/team/TeamDashboard";
@@ -30,6 +32,8 @@ export default function App() {
   return (
     <AuthProvider>
       <TeamProvider>
+        <SessionTimer />
+
         <Routes>
           {/* ---------- PUBLIC ---------- */}
           <Route path="/" element={<Home />} />
@@ -74,6 +78,14 @@ export default function App() {
             <Route path="tasks" element={<ManageTasks />} />
             <Route path="submissions" element={<ManageSubmissions />} />
             <Route path="settings" element={<ManageSettings />} />
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute adminOnly>
+                  <ManageUsers />
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
           {/* ---------- 404 ---------- */}
