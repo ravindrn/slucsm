@@ -1,7 +1,21 @@
 import { useEffect, useState } from "react";
 import api, { imgUrl } from "../../api/axios";
 
-const EMPTY = {
+const EMPTY_SPIRITUAL = {
+  name: "",
+  role: "Spiritual Director",
+  university: "",
+  initials: "",
+  photo: "",
+  year: "",
+  category: "spiritual",
+  email: "",
+  phone: "",
+  order: 1,
+  active: true,
+};
+
+const EMPTY_MEMBER = {
   name: "",
   role: "",
   university: "",
@@ -11,12 +25,11 @@ const EMPTY = {
   category: "executive",
   email: "",
   phone: "",
-  order: 0,
+  order: 10,
   active: true,
 };
 
 const CATEGORIES = [
-  { value: "spiritual", label: "Spiritual" },
   { value: "executive", label: "Executive" },
   { value: "coordinator", label: "Coordinator" },
   { value: "other", label: "Other" },
@@ -25,16 +38,25 @@ const CATEGORIES = [
 export default function ManageCommittee() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const [form, setForm] = useState(EMPTY);
-  const [editingId, setEditingId] = useState(null);
-  const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState("");
+  /* Two independent form states */
+  const [spiritualForm, setSpiritualForm] = useState(EMPTY_SPIRITUAL);
+  const [memberForm, setMemberForm] = useState(EMPTY_MEMBER);
 
-  const [filter, setFilter] = useState("all");
+  /* Track which section we're editing */
+  const [editingSpiritualId, setEditingSpiritualId] = useState(null);
+  const [editingMemberId, setEditingMemberId] = useState(null);
+
+  /* Separate photo state per form */
+  const [spiritualPhoto, setSpiritualPhoto] = useState(null);
+  const [spiritualPreview, setSpiritualPreview] = useState("");
+  const [memberPhoto, setMemberPhoto] = useState(null);
+  const [memberPreview, setMemberPreview] = useState("");
+
+  const [savingSpiritual, setSavingSpiritual] = useState(false);
+  const [savingMember, setSavingMember] = useState(false);
 
   /* ---------- LOAD ---------- */
   const load = async () => {
@@ -52,49 +74,160 @@ export default function ManageCommittee() {
     load();
   }, []);
 
-  /* ---------- FILTER ---------- */
-  const filtered =
-    filter === "all"
-      ? members
-      : filter === "inactive"
-      ? members.filter((m) => !m.active)
-      : members.filter((m) => m.category === filter);
+  /* ---------- SPLIT ---------- */
+  const spiritualMembers = members.filter(
+    (m) => m.category === "spiritual"
+  );
+  const regularMembers = members.filter(
+    (m) => m.category !== "spiritual"
+  );
 
-  /* ---------- FORM ---------- */
-  const reset = () => {
-    setForm(EMPTY);
-    setEditingId(null);
-    setPhotoFile(null);
-    setPhotoPreview("");
-    setError("");
-  };
+  /* ============================================================
+     SPIRITUAL DIRECTORS
+     ============================================================ */
+  const setSpiritual = (key, val) =>
+    setSpiritualForm((f) => ({ ...f, [key]: val }));
 
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-
-  const onPhotoChange = (e) => {
+  const onSpiritualPhoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    setSpiritualPhoto(file);
+    setSpiritualPreview(URL.createObjectURL(file));
   };
 
-  const save = async (e) => {
+  const saveSpiritual = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
-    setSaving(true);
+    setSavingSpiritual(true);
 
     try {
       const fd = new FormData();
-      Object.keys(form).forEach((k) => {
+      Object.keys(spiritualForm).forEach((k) => {
         if (k === "photo") return;
-        if (k === "active") fd.append(k, String(form[k]));
-        else fd.append(k, form[k] ?? "");
+        if (k === "active") fd.append(k, String(spiritualForm[k]));
+        else fd.append(k, spiritualForm[k] ?? "");
       });
-      if (photoFile) fd.append("photo", photoFile);
+      if (spiritualPhoto) fd.append("photo", spiritualPhoto);
 
-      if (editingId) {
-        await api.put(`/committee/${editingId}`, fd, {
+      if (editingSpiritualId) {
+        await api.put(`/committee/${editingSpiritualId}`, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        setSuccess("Spiritual director updated.");
+      } else {
+        await api.post("/committee", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        setSuccess("Spiritual director added.");
+      }
+      setTimeout(() => setSuccess(""), 2500);
+      resetSpiritual();
+      await load();
+    } catch (e) {
+      setError(e.response?.data?.message || "Save failed");
+    } finally {
+      setSavingSpiritual(false);
+    }
+  };
+
+  const resetSpiritual = () => {
+    setSpiritualForm(EMPTY_SPIRITUAL);
+    setEditingSpiritualId(null);
+    setSpiritualPhoto(null);
+    setSpiritualPreview("");
+  };
+
+  const editSpiritual = (m) => {
+    setEditingSpiritualId(m._id);
+    setSpiritualForm({
+      name: m.name,
+      role: m.role || "Spiritual Director",
+      university: m.university || "",
+      initials: m.initials || "",
+      photo: m.photo || "",
+      year: m.year || "",
+      category: "spiritual",
+      email: m.email || "",
+      phone: m.phone || "",
+      order: m.order || 1,
+      active: m.active !== false,
+    });
+    setSpiritualPhoto(null);
+    setSpiritualPreview(m.photo ? imgUrl(m.photo) : "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const delSpiritual = async (m) => {
+    if (!window.confirm(`Delete "${m.name}"?`)) return;
+    await api.delete(`/committee/${m._id}`);
+    setMembers((list) => list.filter((x) => x._id !== m._id));
+  };
+
+  const toggleSpiritualActive = async (m) => {
+    try {
+      const fd = new FormData();
+      fd.append("active", String(!m.active));
+      const { data } = await api.put(`/committee/${m._id}`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setMembers((list) => list.map((x) => (x._id === m._id ? data : x)));
+    } catch {
+      alert("Toggle failed");
+    }
+  };
+
+  const moveSpiritual = async (idx, dir) => {
+    const j = idx + dir;
+    if (j < 0 || j >= spiritualMembers.length) return;
+    const list = [...spiritualMembers];
+    [list[idx], list[j]] = [list[j], list[idx]];
+    const ids = list.map((m) => m._id);
+
+    setMembers((all) =>
+      all.map((m) => {
+        const i = ids.indexOf(m._id);
+        return i === -1 ? m : { ...m, order: i + 1 };
+      })
+    );
+
+    try {
+      await api.post("/committee/reorder", { ids });
+    } catch {
+      await load();
+    }
+  };
+
+  /* ============================================================
+     COMMITTEE MEMBERS
+     ============================================================ */
+  const setMember = (key, val) =>
+    setMemberForm((f) => ({ ...f, [key]: val }));
+
+  const onMemberPhoto = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMemberPhoto(file);
+    setMemberPreview(URL.createObjectURL(file));
+  };
+
+  const saveMember = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setSavingMember(true);
+
+    try {
+      const fd = new FormData();
+      Object.keys(memberForm).forEach((k) => {
+        if (k === "photo") return;
+        if (k === "active") fd.append(k, String(memberForm[k]));
+        else fd.append(k, memberForm[k] ?? "");
+      });
+      if (memberPhoto) fd.append("photo", memberPhoto);
+
+      if (editingMemberId) {
+        await api.put(`/committee/${editingMemberId}`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         setSuccess("Member updated.");
@@ -105,19 +238,25 @@ export default function ManageCommittee() {
         setSuccess("Member added.");
       }
       setTimeout(() => setSuccess(""), 2500);
-
-      reset();
+      resetMember();
       await load();
     } catch (e) {
       setError(e.response?.data?.message || "Save failed");
     } finally {
-      setSaving(false);
+      setSavingMember(false);
     }
   };
 
-  const edit = (m) => {
-    setEditingId(m._id);
-    setForm({
+  const resetMember = () => {
+    setMemberForm(EMPTY_MEMBER);
+    setEditingMemberId(null);
+    setMemberPhoto(null);
+    setMemberPreview("");
+  };
+
+  const editMember = (m) => {
+    setEditingMemberId(m._id);
+    setMemberForm({
       name: m.name,
       role: m.role,
       university: m.university || "",
@@ -127,26 +266,21 @@ export default function ManageCommittee() {
       category: m.category || "executive",
       email: m.email || "",
       phone: m.phone || "",
-      order: m.order || 0,
+      order: m.order || 10,
       active: m.active !== false,
     });
-    setPhotoFile(null);
-    setPhotoPreview(m.photo ? imgUrl(m.photo) : "");
-    setError("");
+    setMemberPhoto(null);
+    setMemberPreview(m.photo ? imgUrl(m.photo) : "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const del = async (m) => {
+  const delMember = async (m) => {
     if (!window.confirm(`Delete "${m.name}"?`)) return;
-    try {
-      await api.delete(`/committee/${m._id}`);
-      setMembers((list) => list.filter((x) => x._id !== m._id));
-    } catch (e) {
-      alert(e.response?.data?.message || "Delete failed");
-    }
+    await api.delete(`/committee/${m._id}`);
+    setMembers((list) => list.filter((x) => x._id !== m._id));
   };
 
-  const toggleActive = async (m) => {
+  const toggleMemberActive = async (m) => {
     try {
       const fd = new FormData();
       fd.append("active", String(!m.active));
@@ -154,34 +288,28 @@ export default function ManageCommittee() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setMembers((list) => list.map((x) => (x._id === m._id ? data : x)));
-    } catch (e) {
+    } catch {
       alert("Toggle failed");
     }
   };
 
-  const move = async (idx, dir) => {
+  const moveMember = async (idx, dir) => {
     const j = idx + dir;
-    if (j < 0 || j >= filtered.length) return;
-    const list = [...filtered];
+    if (j < 0 || j >= regularMembers.length) return;
+    const list = [...regularMembers];
     [list[idx], list[j]] = [list[j], list[idx]];
     const ids = list.map((m) => m._id);
 
-    setMembers((all) => {
-      const ordered = [...all].sort((a, b) => {
-        const ai = ids.indexOf(a._id);
-        const bi = ids.indexOf(b._id);
-        if (ai === -1 && bi === -1) return 0;
-        if (ai === -1) return 1;
-        if (bi === -1) return -1;
-        return ai - bi;
-      });
-      return ordered.map((m, i) => ({ ...m, order: i }));
-    });
+    setMembers((all) =>
+      all.map((m) => {
+        const i = ids.indexOf(m._id);
+        return i === -1 ? m : { ...m, order: i + 10 };
+      })
+    );
 
     try {
       await api.post("/committee/reorder", { ids });
-    } catch (e) {
-      alert("Reorder failed");
+    } catch {
       await load();
     }
   };
@@ -197,302 +325,539 @@ export default function ManageCommittee() {
         <div>
           <h1>Committee</h1>
           <p className="mc-sub">
-            Manage your team — names, roles, universities, photos. They appear on
-            the homepage in the order below.
+            Manage spiritual directors and committee members. Both appear on the
+            homepage in the order shown.
           </p>
         </div>
-        <div className="mc-head-actions">
-          <a href="/#committee" target="_blank" rel="noreferrer" className="mc-btn ghost">
-            View on site ↗
-          </a>
-          <button
-            className="mc-btn ghost"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          >
-            ↑ New member
-          </button>
-        </div>
+        <a
+          href="/#committee"
+          target="_blank"
+          rel="noreferrer"
+          className="mc-btn ghost"
+        >
+          View on site ↗
+        </a>
       </div>
 
       {error && <div className="mc-banner error">{error}</div>}
       {success && <div className="mc-banner success">{success}</div>}
 
-      <div className="mc-layout">
-        {/* ---------- FORM ---------- */}
-        <form className="mc-form" onSubmit={save}>
-          <h2>{editingId ? "Edit member" : "New member"}</h2>
+      {/* ============================================================
+          SPIRITUAL DIRECTORS SECTION
+         ============================================================ */}
+      <section className="mc-section spiritual-section">
+        <div className="mc-section-head">
+          <div>
+            <h2>✦ Spiritual Directors</h2>
+            <p className="mc-section-sub">
+              Priests and religious who guide the Movement. These appear above
+              the committee on the homepage.
+            </p>
+          </div>
+        </div>
 
-          <div className="mc-photo-block">
-            <div className="mc-photo-preview">
-              {photoPreview ? (
-                <img src={photoPreview} alt="Preview" />
-              ) : (
-                <div className="mc-photo-placeholder">
-                  {form.initials || form.name?.[0]?.toUpperCase() || "?"}
-                </div>
-              )}
+        <div className="mc-layout">
+          {/* SPIRITUAL FORM */}
+          <form className="mc-form" onSubmit={saveSpiritual}>
+            <h3>
+              {editingSpiritualId
+                ? "Edit spiritual director"
+                : "Add spiritual director"}
+            </h3>
+
+            <div className="mc-photo-block">
+              <div className="mc-photo-preview spiritual">
+                {spiritualPreview ? (
+                  <img src={spiritualPreview} alt="Preview" />
+                ) : (
+                  <div className="mc-photo-placeholder">
+                    {spiritualForm.initials ||
+                      spiritualForm.name?.[0]?.toUpperCase() ||
+                      "?"}
+                  </div>
+                )}
+              </div>
+              <div className="mc-photo-actions">
+                <label className="mc-photo-btn">
+                  Upload photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={onSpiritualPhoto}
+                    hidden
+                  />
+                </label>
+                {spiritualPreview && (
+                  <button
+                    type="button"
+                    className="mc-photo-btn remove"
+                    onClick={() => {
+                      setSpiritualPhoto(null);
+                      setSpiritualPreview("");
+                      setSpiritual("photo", "");
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="mc-photo-actions">
-              <label className="mc-photo-btn">
-                Upload photo
+
+            <label>Name *</label>
+            <input
+              type="text"
+              value={spiritualForm.name}
+              onChange={(e) => setSpiritual("name", e.target.value)}
+              placeholder="Fr. John Perera"
+              required
+            />
+
+            <label>Role / Title</label>
+            <input
+              type="text"
+              value={spiritualForm.role}
+              onChange={(e) => setSpiritual("role", e.target.value)}
+              placeholder="Spiritual Director"
+            />
+
+            <div className="mc-grid-2">
+              <div>
+                <label>Initials</label>
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={onPhotoChange}
-                  hidden
+                  type="text"
+                  value={spiritualForm.initials}
+                  onChange={(e) =>
+                    setSpiritual(
+                      "initials",
+                      e.target.value.toUpperCase().slice(0, 3)
+                    )
+                  }
+                  placeholder="JP"
+                  maxLength={3}
                 />
-              </label>
-              {photoPreview && (
+              </div>
+              <div>
+                <label>Order</label>
+                <input
+                  type="number"
+                  value={spiritualForm.order}
+                  onChange={(e) =>
+                    setSpiritual("order", Number(e.target.value) || 0)
+                  }
+                />
+              </div>
+            </div>
+
+            <label className="mc-toggle">
+              <input
+                type="checkbox"
+                checked={spiritualForm.active}
+                onChange={(e) => setSpiritual("active", e.target.checked)}
+              />
+              <span>
+                {spiritualForm.active ? "Visible on site" : "Hidden"}
+              </span>
+            </label>
+
+            <div className="mc-form-actions">
+              <button
+                type="submit"
+                className="mc-btn primary"
+                disabled={savingSpiritual}
+              >
+                {savingSpiritual
+                  ? "Saving…"
+                  : editingSpiritualId
+                  ? "Update"
+                  : "Add director"}
+              </button>
+              {editingSpiritualId && (
                 <button
                   type="button"
-                  className="mc-photo-btn remove"
-                  onClick={() => {
-                    setPhotoFile(null);
-                    setPhotoPreview("");
-                    set("photo", "");
-                  }}
+                  className="mc-btn ghost"
+                  onClick={resetSpiritual}
                 >
-                  Remove
+                  Cancel
                 </button>
               )}
             </div>
-          </div>
+          </form>
 
-          <label>Name *</label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => set("name", e.target.value)}
-            placeholder="Fr. John Perera"
-            required
-          />
+          {/* SPIRITUAL LIST */}
+          <div className="mc-list spiritual-list">
+            <h3>
+              {spiritualMembers.length} spiritual director
+              {spiritualMembers.length !== 1 && "s"}
+            </h3>
 
-          <label>Role *</label>
-          <input
-            type="text"
-            value={form.role}
-            onChange={(e) => set("role", e.target.value)}
-            placeholder="President"
-            required
-          />
+            {spiritualMembers.length === 0 ? (
+              <p className="mc-empty">
+                No spiritual directors yet. Add one using the form.
+              </p>
+            ) : (
+              <ul className="mc-member-list spiritual">
+                {spiritualMembers.map((m, i) => (
+                  <li
+                    key={m._id}
+                    className={`mc-member spiritual${
+                      !m.active ? " inactive" : ""
+                    }`}
+                  >
+                    <div className="mc-member-avatar spiritual">
+                      {m.photo ? (
+                        <img src={imgUrl(m.photo)} alt={m.name} />
+                      ) : (
+                        <span>{m.initials || "?"}</span>
+                      )}
+                    </div>
 
-          <label>University / Affiliation</label>
-          <input
-            type="text"
-            value={form.university}
-            onChange={(e) => set("university", e.target.value)}
-            placeholder="University of Colombo"
-          />
+                    <div className="mc-member-info">
+                      <strong>{m.name}</strong>
+                      <span className="mc-member-role">{m.role}</span>
+                    </div>
 
-          <div className="mc-grid-2">
-            <div>
-              <label>Initials</label>
-              <input
-                type="text"
-                value={form.initials}
-                onChange={(e) =>
-                  set("initials", e.target.value.toUpperCase().slice(0, 3))
-                }
-                placeholder="JP"
-                maxLength={3}
-              />
-            </div>
-            <div>
-              <label>Category</label>
-              <select
-                value={form.category}
-                onChange={(e) => set("category", e.target.value)}
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
+                    <div className="mc-member-actions">
+                      <button
+                        type="button"
+                        className="mc-icon-btn"
+                        onClick={() => moveSpiritual(i, -1)}
+                        title="Move up"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="mc-icon-btn"
+                        onClick={() => moveSpiritual(i, 1)}
+                        title="Move down"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="mc-icon-btn"
+                        onClick={() => toggleSpiritualActive(m)}
+                        title={m.active ? "Hide" : "Show"}
+                      >
+                        {m.active ? "👁" : "🚫"}
+                      </button>
+                      <button
+                        type="button"
+                        className="mc-btn small"
+                        onClick={() => editSpiritual(m)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="mc-btn small danger"
+                        onClick={() => delSpiritual(m)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </li>
                 ))}
-              </select>
-            </div>
-          </div>
-
-          <label>Year (e.g. 2025/26)</label>
-          <input
-            type="text"
-            value={form.year}
-            onChange={(e) => set("year", e.target.value)}
-            placeholder="2025/26"
-          />
-
-          <div className="mc-grid-2">
-            <div>
-              <label>Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => set("email", e.target.value)}
-                placeholder="name@university.lk"
-              />
-            </div>
-            <div>
-              <label>Phone</label>
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
-                placeholder="+94 71 XXX XXXX"
-              />
-            </div>
-          </div>
-
-          <div className="mc-grid-2">
-            <div>
-              <label>Order</label>
-              <input
-                type="number"
-                value={form.order}
-                onChange={(e) => set("order", Number(e.target.value) || 0)}
-              />
-            </div>
-            <div>
-              <label>Active</label>
-              <label className="mc-toggle">
-                <input
-                  type="checkbox"
-                  checked={form.active}
-                  onChange={(e) => set("active", e.target.checked)}
-                />
-                <span>{form.active ? "Visible on site" : "Hidden"}</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="mc-form-actions">
-            <button
-              type="submit"
-              className="mc-btn primary"
-              disabled={saving}
-            >
-              {saving ? "Saving…" : editingId ? "Update" : "Add member"}
-            </button>
-            {editingId && (
-              <button type="button" className="mc-btn ghost" onClick={reset}>
-                Cancel
-              </button>
+              </ul>
             )}
           </div>
-        </form>
-
-        {/* ---------- LIST ---------- */}
-        <div className="mc-list">
-          <div className="mc-list-head">
-            <h2>
-              {filtered.length} member{filtered.length !== 1 && "s"}
-            </h2>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="mc-filter"
-            >
-              <option value="all">All categories</option>
-              <option value="executive">Executive</option>
-              <option value="spiritual">Spiritual</option>
-              <option value="coordinator">Coordinator</option>
-              <option value="other">Other</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
-          {filtered.length === 0 ? (
-            <p className="mc-empty">No members in this view.</p>
-          ) : (
-            <ul className="mc-member-list">
-              {filtered.map((m, i) => (
-                <li
-                  key={m._id}
-                  className={`mc-member${!m.active ? " inactive" : ""}`}
-                >
-                  <div className="mc-member-avatar">
-                    {m.photo ? (
-                      <img src={imgUrl(m.photo)} alt={m.name} />
-                    ) : (
-                      <span>{m.initials || "?"}</span>
-                    )}
-                  </div>
-
-                  <div className="mc-member-info">
-                    <strong>{m.name}</strong>
-                    <span className="mc-member-role">{m.role}</span>
-                    {m.university && (
-                      <span className="mc-member-uni">{m.university}</span>
-                    )}
-                    {m.year && (
-                      <span className="mc-member-year">{m.year}</span>
-                    )}
-                  </div>
-
-                  <div className="mc-member-actions">
-                    <button
-                      type="button"
-                      className="mc-icon-btn"
-                      onClick={() => move(i, -1)}
-                      title="Move up"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className="mc-icon-btn"
-                      onClick={() => move(i, 1)}
-                      title="Move down"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      className="mc-icon-btn"
-                      onClick={() => toggleActive(m)}
-                      title={m.active ? "Hide" : "Show"}
-                    >
-                      {m.active ? "👁" : "🚫"}
-                    </button>
-                    <button
-                      type="button"
-                      className="mc-btn small"
-                      onClick={() => edit(m)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="mc-btn small danger"
-                      onClick={() => del(m)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
-      </div>
+      </section>
+
+      {/* ============================================================
+          COMMITTEE MEMBERS SECTION
+         ============================================================ */}
+      <section className="mc-section committee-section">
+        <div className="mc-section-head">
+          <div>
+            <h2>✦ Committee Members</h2>
+            <p className="mc-section-sub">
+              Executive committee, coordinators and other student leaders.
+            </p>
+          </div>
+        </div>
+
+        <div className="mc-layout">
+          {/* MEMBER FORM */}
+          <form className="mc-form" onSubmit={saveMember}>
+            <h3>
+              {editingMemberId ? "Edit member" : "Add committee member"}
+            </h3>
+
+            <div className="mc-photo-block">
+              <div className="mc-photo-preview">
+                {memberPreview ? (
+                  <img src={memberPreview} alt="Preview" />
+                ) : (
+                  <div className="mc-photo-placeholder">
+                    {memberForm.initials ||
+                      memberForm.name?.[0]?.toUpperCase() ||
+                      "?"}
+                  </div>
+                )}
+              </div>
+              <div className="mc-photo-actions">
+                <label className="mc-photo-btn">
+                  Upload photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={onMemberPhoto}
+                    hidden
+                  />
+                </label>
+                {memberPreview && (
+                  <button
+                    type="button"
+                    className="mc-photo-btn remove"
+                    onClick={() => {
+                      setMemberPhoto(null);
+                      setMemberPreview("");
+                      setMember("photo", "");
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <label>Name *</label>
+            <input
+              type="text"
+              value={memberForm.name}
+              onChange={(e) => setMember("name", e.target.value)}
+              placeholder="Jane Silva"
+              required
+            />
+
+            <label>Role *</label>
+            <input
+              type="text"
+              value={memberForm.role}
+              onChange={(e) => setMember("role", e.target.value)}
+              placeholder="President"
+              required
+            />
+
+            <label>University</label>
+            <input
+              type="text"
+              value={memberForm.university}
+              onChange={(e) => setMember("university", e.target.value)}
+              placeholder="University of Colombo"
+            />
+
+            <div className="mc-grid-2">
+              <div>
+                <label>Initials</label>
+                <input
+                  type="text"
+                  value={memberForm.initials}
+                  onChange={(e) =>
+                    setMember(
+                      "initials",
+                      e.target.value.toUpperCase().slice(0, 3)
+                    )
+                  }
+                  placeholder="JS"
+                  maxLength={3}
+                />
+              </div>
+              <div>
+                <label>Category</label>
+                <select
+                  value={memberForm.category}
+                  onChange={(e) => setMember("category", e.target.value)}
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <label>Year (e.g. 2025/26)</label>
+            <input
+              type="text"
+              value={memberForm.year}
+              onChange={(e) => setMember("year", e.target.value)}
+              placeholder="2025/26"
+            />
+
+            <div className="mc-grid-2">
+              <div>
+                <label>Email</label>
+                <input
+                  type="email"
+                  value={memberForm.email}
+                  onChange={(e) => setMember("email", e.target.value)}
+                  placeholder="name@university.lk"
+                />
+              </div>
+              <div>
+                <label>Phone</label>
+                <input
+                  type="tel"
+                  value={memberForm.phone}
+                  onChange={(e) => setMember("phone", e.target.value)}
+                  placeholder="+94 71 XXX XXXX"
+                />
+              </div>
+            </div>
+
+            <div className="mc-grid-2">
+              <div>
+                <label>Order</label>
+                <input
+                  type="number"
+                  value={memberForm.order}
+                  onChange={(e) =>
+                    setMember("order", Number(e.target.value) || 0)
+                  }
+                />
+              </div>
+              <div>
+                <label>Active</label>
+                <label className="mc-toggle">
+                  <input
+                    type="checkbox"
+                    checked={memberForm.active}
+                    onChange={(e) => setMember("active", e.target.checked)}
+                  />
+                  <span>
+                    {memberForm.active ? "Visible on site" : "Hidden"}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div className="mc-form-actions">
+              <button
+                type="submit"
+                className="mc-btn primary"
+                disabled={savingMember}
+              >
+                {savingMember
+                  ? "Saving…"
+                  : editingMemberId
+                  ? "Update"
+                  : "Add member"}
+              </button>
+              {editingMemberId && (
+                <button
+                  type="button"
+                  className="mc-btn ghost"
+                  onClick={resetMember}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+
+          {/* MEMBER LIST */}
+          <div className="mc-list">
+            <h3>
+              {regularMembers.length} committee member
+              {regularMembers.length !== 1 && "s"}
+            </h3>
+
+            {regularMembers.length === 0 ? (
+              <p className="mc-empty">
+                No committee members yet. Add one using the form.
+              </p>
+            ) : (
+              <ul className="mc-member-list">
+                {regularMembers.map((m, i) => (
+                  <li
+                    key={m._id}
+                    className={`mc-member${!m.active ? " inactive" : ""}`}
+                  >
+                    <div className="mc-member-avatar">
+                      {m.photo ? (
+                        <img src={imgUrl(m.photo)} alt={m.name} />
+                      ) : (
+                        <span>{m.initials || "?"}</span>
+                      )}
+                    </div>
+
+                    <div className="mc-member-info">
+                      <strong>{m.name}</strong>
+                      <span className="mc-member-role">{m.role}</span>
+                      {m.university && (
+                        <span className="mc-member-uni">{m.university}</span>
+                      )}
+                      {m.year && (
+                        <span className="mc-member-year">{m.year}</span>
+                      )}
+                    </div>
+
+                    <div className="mc-member-actions">
+                      <button
+                        type="button"
+                        className="mc-icon-btn"
+                        onClick={() => moveMember(i, -1)}
+                        title="Move up"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="mc-icon-btn"
+                        onClick={() => moveMember(i, 1)}
+                        title="Move down"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="mc-icon-btn"
+                        onClick={() => toggleMemberActive(m)}
+                        title={m.active ? "Hide" : "Show"}
+                      >
+                        {m.active ? "👁" : "🚫"}
+                      </button>
+                      <button
+                        type="button"
+                        className="mc-btn small"
+                        onClick={() => editMember(m)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="mc-btn small danger"
+                        onClick={() => delMember(m)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
 
-/* ============================================================
-   CSS
-   ============================================================ */
 const css = `
 .manage-committee{ color:#1B2A4A; }
 
 .mc-head{
   display:flex; align-items:flex-start; justify-content:space-between;
-  gap:16px; flex-wrap:wrap; margin-bottom:24px;
+  gap:16px; flex-wrap:wrap; margin-bottom:28px;
 }
 .mc-head h1{
   font-family:'Cormorant Garamond', serif;
   font-size:2rem; font-weight:600; margin:0 0 6px;
 }
 .mc-sub{ color:#5a6380; font-size:0.9rem; margin:0; max-width:560px; }
-.mc-head-actions{ display:flex; gap:8px; flex-wrap:wrap; }
 
 .mc-banner{
   padding:12px 18px; border-radius:4px;
@@ -501,6 +866,42 @@ const css = `
 .mc-banner.error{ background:#fff2f0; color:#b23b3b; border:1px solid #f0c8c2; }
 .mc-banner.success{ background:#E3F3E5; color:#2e7d32; border:1px solid #bfe0c4; }
 
+/* ---------- SECTION WRAPPER ---------- */
+.mc-section{
+  margin-bottom:44px;
+  padding-bottom:32px;
+}
+.mc-section.spiritual-section{
+  background:linear-gradient(180deg, rgba(184,145,47,0.05), rgba(184,145,47,0.01));
+  border-radius:8px;
+  padding:26px 22px 32px;
+  border:1px solid rgba(184,145,47,0.15);
+}
+.mc-section.committee-section{
+  background:#FFFDF8;
+  border-radius:8px;
+  padding:26px 22px 32px;
+  border:1px solid rgba(27,42,74,0.14);
+}
+
+.mc-section-head{
+  margin-bottom:22px;
+  padding-bottom:14px;
+  border-bottom:1px solid rgba(27,42,74,0.08);
+}
+.mc-section-head h2{
+  font-family:'Cormorant Garamond', serif;
+  font-size:1.5rem; font-weight:600; margin:0 0 4px;
+  color:#1B2A4A;
+}
+.mc-section.spiritual-section .mc-section-head h2{
+  color:#8a6d10;
+}
+.mc-section-sub{
+  color:#5a6380; font-size:0.85rem; margin:0;
+}
+
+/* ---------- LAYOUT ---------- */
 .mc-layout{
   display:grid;
   grid-template-columns:400px 1fr;
@@ -513,18 +914,17 @@ const css = `
 
 /* ---------- FORM ---------- */
 .mc-form{
-  background:#FFFDF8;
+  background:#fff;
   border:1px solid rgba(27,42,74,0.14);
   border-radius:6px;
   padding:22px;
   display:flex; flex-direction:column; gap:8px;
-  position:sticky; top:20px;
-  overflow:hidden;       /* prevents children from escaping */
   min-width:0;
 }
-.mc-form h2{
+.mc-form h3{
   font-family:'Cormorant Garamond', serif;
-  font-size:1.4rem; margin:0 0 12px;
+  font-size:1.25rem; margin:0 0 12px;
+  color:#1B2A4A;
 }
 .mc-form label{
   font-size:0.82rem; font-weight:500;
@@ -535,8 +935,8 @@ const css = `
 .mc-form input[type="tel"],
 .mc-form input[type="number"],
 .mc-form select{
-  width:100%;               /* fills its cell */
-  min-width:0;              /* can shrink below intrinsic minimum */
+  width:100%;
+  min-width:0;
   padding:9px 12px;
   border:1px solid rgba(27,42,74,0.14);
   border-radius:3px;
@@ -550,13 +950,11 @@ const css = `
 }
 .mc-grid-2{
   display:grid;
-  grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);   /* allow shrink */
+  grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
   gap:12px;
   min-width:0;
 }
-.mc-grid-2 > div{
-  min-width:0;              /* grid cell can shrink */
-}
+.mc-grid-2 > div{ min-width:0; }
 
 /* ---------- PHOTO ---------- */
 .mc-photo-block{
@@ -571,6 +969,10 @@ const css = `
   border:1.5px solid rgba(27,42,74,0.14);
   display:flex; align-items:center; justify-content:center;
   flex-shrink:0;
+}
+.mc-photo-preview.spiritual{
+  border:2px solid #B8912F;
+  box-shadow:0 4px 16px rgba(184,145,47,0.2);
 }
 .mc-photo-preview img{
   width:100%; height:100%; object-fit:cover;
@@ -641,29 +1043,17 @@ const css = `
 
 /* ---------- LIST ---------- */
 .mc-list{
-  background:#FFFDF8;
+  background:#fff;
   border:1px solid rgba(27,42,74,0.14);
   border-radius:6px;
   padding:22px;
 }
-.mc-list-head{
-  display:flex; justify-content:space-between;
-  align-items:center; gap:12px;
-  margin-bottom:16px;
-  flex-wrap:wrap;
-}
-.mc-list-head h2{
+.mc-list h3{
   font-family:'Cormorant Garamond', serif;
-  font-size:1.4rem; margin:0;
+  font-size:1.25rem; margin:0 0 16px;
+  color:#1B2A4A;
 }
-.mc-filter{
-  padding:8px 12px;
-  border:1px solid rgba(27,42,74,0.14);
-  border-radius:3px;
-  font-family:inherit; font-size:0.85rem;
-  background:#fff; cursor:pointer;
-}
-.mc-empty{ color:#7b8399; font-style:italic; }
+.mc-empty{ color:#7b8399; font-style:italic; font-size:0.88rem; }
 
 .mc-member-list{ list-style:none; margin:0; padding:0; }
 .mc-member{
@@ -688,6 +1078,10 @@ const css = `
   font-family:'Cormorant Garamond',serif;
   font-size:1.2rem;
   color:#B8912F;
+}
+.mc-member-avatar.spiritual{
+  border:2px solid #B8912F;
+  box-shadow:0 2px 12px rgba(184,145,47,0.18);
 }
 .mc-member-avatar img{
   width:100%; height:100%; object-fit:cover;
