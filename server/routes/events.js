@@ -24,7 +24,7 @@ router.post("/", protect, upload.single("coverImage"), async (req, res) => {
     if (typeof body.sections === "string") body.sections = JSON.parse(body.sections);
     if (typeof body.galleryPreview === "string")
       body.galleryPreview = JSON.parse(body.galleryPreview);
-    if (req.file) body.coverImage = `/uploads/${req.file.filename}`;
+    if (req.file) body.coverImage = req.file.path;
     const event = await Event.create(body);
     res.status(201).json(event);
   } catch (e) {
@@ -38,7 +38,7 @@ router.put("/:id", protect, upload.single("coverImage"), async (req, res) => {
     if (typeof body.sections === "string") body.sections = JSON.parse(body.sections);
     if (typeof body.galleryPreview === "string")
       body.galleryPreview = JSON.parse(body.galleryPreview);
-    if (req.file) body.coverImage = `/uploads/${req.file.filename}`;
+    if (req.file) body.coverImage = req.file.path;
     const event = await Event.findByIdAndUpdate(req.params.id, body, {
       new: true,
       runValidators: true,
