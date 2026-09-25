@@ -23,13 +23,20 @@ export function TeamProvider({ children }) {
     }
   };
 
-  useEffect(() => {
-    (async () => {
-      await refresh();
-      setLoading(false);
-    })();
-  }, []);
+ useEffect(() => {
+  (async () => {
+    /* Only check team session on team-related routes.
+       Prevents pointless 401s on admin / public pages. */
+    const path = window.location.pathname;
+    const onTeamRoute =
+      path.includes("/portal") || path.startsWith("/scan/");
 
+    if (onTeamRoute) {
+      await refresh();
+    }
+    setLoading(false);
+  })();
+}, []);
   const login = async (eventSlug, username, password) => {
     const { data } = await api.post("/teams/login", {
       eventSlug,
