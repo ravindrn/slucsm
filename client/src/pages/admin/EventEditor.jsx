@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import api from "../../api/axios";
+import api, { imgUrl } from "../../api/axios";
 import SectionEditor from "../../components/admin/SectionEditor.jsx";
 import { SECTION_KINDS, defaultDataFor } from "../../components/admin/fieldEditors/index.jsx";
 
@@ -98,6 +98,26 @@ export default function EventEditor() {
     });
   };
 
+  /* ---------- COVER UPLOAD ---------- */
+  const uploadCover = async (file) => {
+    if (!file) return;
+    try {
+      const fd = new FormData();
+      fd.append("files", file);
+      if (!isNew) fd.append("eventId", id);
+      fd.append("tag", "event-cover");
+
+      const { data } = await api.post("/media", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      const uploaded = data.files?.[0];
+      if (uploaded) set("coverImage", uploaded.url);
+    } catch (e) {
+      alert(e.response?.data?.message || "Upload failed");
+    }
+  };
+
   /* ---------- SAVE ---------- */
   const save = async (e) => {
     e?.preventDefault();
@@ -109,7 +129,6 @@ export default function EventEditor() {
         throw new Error("Slug and title are required.");
       }
 
-      /* Convert date strings to null if empty */
       const payload = {
         ...form,
         startDate: form.startDate || null,
@@ -236,60 +255,47 @@ export default function EventEditor() {
                 onChange={(e) => set("endDate", e.target.value)}
               />
             </Field>
-            <Field label="Cover image">
-  <div className="ee-cover-block">
-    {form.coverImage && (
-      <div className="ee-cover-preview">
-        <img src={imgUrl(form.coverImage)} alt="Cover preview" />
-        <button
-          type="button"
-          className="ee-cover-remove"
-          onClick={() => set("coverImage", "")}
-          title="Remove cover"
-        >
-          ×
-        </button>
-      </div>
-    )}
 
-    <div className="ee-cover-actions">
-      <input
-        type="text"
-        value={form.coverImage}
-        onChange={(e) => set("coverImage", e.target.value)}
-        placeholder="https://res.cloudinary.com/... or paste URL"
-      />
-      <label className="ee-cover-upload">
-        📷 Upload
-        <input
-          type="file"
-          accept="image/*"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            try {
-              const fd = new FormData();
-              fd.append("files", file);
-              if (!isNew) fd.append("eventId", id);
-              fd.append("tag", "event-cover");
+            {/* ---------- COVER IMAGE WITH UPLOAD ---------- */}
+            <Field label="Cover image" full>
+              <div className="ee-cover-block">
+                {form.coverImage && (
+                  <div className="ee-cover-preview">
+                    <img src={imgUrl(form.coverImage)} alt="Cover preview" />
+                    <button
+                      type="button"
+                      className="ee-cover-remove"
+                      onClick={() => set("coverImage", "")}
+                      title="Remove cover"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
 
-              const { data } = await api.post("/media", fd, {
-                headers: { "Content-Type": "multipart/form-data" },
-              });
+                <div className="ee-cover-actions">
+                  <input
+                    type="text"
+                    value={form.coverImage}
+                    onChange={(e) => set("coverImage", e.target.value)}
+                    placeholder="https://res.cloudinary.com/... or paste URL"
+                  />
+                  <label className="ee-cover-upload">
+                    📷 Upload
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        uploadCover(e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                      hidden
+                    />
+                  </label>
+                </div>
+              </div>
+            </Field>
 
-              const uploaded = data.files?.[0];
-              if (uploaded) set("coverImage", uploaded.url);
-            } catch (err) {
-              alert(err.response?.data?.message || "Upload failed");
-            }
-            e.target.value = "";
-          }}
-          hidden
-        />
-      </label>
-    </div>
-  </div>
-</Field>
             <Field label="Order">
               <input
                 type="number"
@@ -336,15 +342,15 @@ export default function EventEditor() {
           ) : (
             <div className="ee-sections">
               {form.sections.map((s, i) => (
-  <SectionEditor
-    key={i}
-    section={s}
-    onChange={(newSec) => updateSection(i, newSec)}
-    onRemove={() => removeSection(i)}
-    onMove={(dir) => moveSection(i, dir)}
-    eventId={isNew ? null : id}
-  />
-))}
+                <SectionEditor
+                  key={i}
+                  section={s}
+                  onChange={(newSec) => updateSection(i, newSec)}
+                  onRemove={() => removeSection(i)}
+                  onMove={(dir) => moveSection(i, dir)}
+                  eventId={isNew ? null : id}
+                />
+              ))}
             </div>
           )}
 
@@ -483,6 +489,78 @@ const css = `
   font-size:0.9rem;
 }
 
+/* ---------- COVER IMAGE ---------- */
+.ee-cover-block{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.ee-cover-preview{
+  position:relative;
+  width:100%;
+  max-width:280px;
+  border-radius:6px;
+  overflow:hidden;
+  border:1px solid rgba(27,42,74,0.14);
+  background:#F8F4E9;
+}
+.ee-cover-preview img{
+  width:100%;
+  display:block;
+  aspect-ratio:16 / 9;
+  object-fit:cover;
+}
+.ee-cover-remove{
+  position:absolute;
+  top:6px; right:6px;
+  width:26px; height:26px;
+  background:rgba(0,0,0,0.65);
+  color:#fff;
+  border:none;
+  border-radius:50%;
+  font-size:1rem;
+  cursor:pointer;
+  line-height:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.ee-cover-remove:hover{ background:#b23b3b; }
+
+.ee-cover-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.ee-cover-actions input[type="text"]{
+  flex:1;
+  min-width:200px;
+  padding:9px 12px;
+  border:1px solid rgba(27,42,74,0.14);
+  border-radius:3px;
+  font-family:inherit;
+  font-size:0.9rem;
+  background:#fff;
+}
+.ee-cover-actions input[type="text"]:focus{
+  outline:none;
+  border-color:#B8912F;
+  box-shadow:0 0 0 3px rgba(184,145,47,0.1);
+}
+.ee-cover-upload{
+  padding:9px 16px;
+  background:#1B2A4A;
+  color:#F8F4E9;
+  border:1px solid #1B2A4A;
+  border-radius:3px;
+  cursor:pointer;
+  font-size:0.88rem;
+  white-space:nowrap;
+  transition:.15s;
+}
+.ee-cover-upload:hover{ background:#6E2C2C; border-color:#6E2C2C; }
+
+/* ---------- SECTIONS ---------- */
 .ee-empty-sections{
   padding:30px; text-align:center;
   color:#7b8399; font-style:italic;
@@ -566,141 +644,14 @@ const css = `
   font-size:0.9rem; margin-bottom:14px;
 }
 
-/* ---------- FIELD EDITORS ---------- */
-.field-editor{ display:flex; flex-direction:column; gap:10px; }
-.fe-empty{ color:#7b8399; font-style:italic; font-size:0.88rem; margin:0; }
+/* ---------- FIELD EDITOR WRAPPERS ---------- */
+.fe-label{
+  font-size:0.82rem; font-weight:500; color:#3a4560;
+  display:block; margin-bottom:6px;
+}
 .fe-hint{
   font-size:0.8rem; color:#7b8399;
   margin:6px 0 0;
 }
-.fe-label{
-  font-size:0.82rem; font-weight:500; color:#3a4560;
-  margin-top:8px;
-}
-.fe-row{
-  display:grid;
-  grid-template-columns:1fr auto auto;
-  gap:8px; align-items:center;
-}
-.fe-row input[type="text"]{
-  padding:8px 12px;
-  border:1px solid rgba(27,42,74,0.14);
-  border-radius:3px; font-size:0.9rem;
-  font-family:inherit;
-}
-.fe-photo-row{
-  display:grid;
-  grid-template-columns:1fr 1fr auto;
-  gap:8px; align-items:center;
-}
-.fe-photo-row input{
-  padding:8px 12px;
-  border:1px solid rgba(27,42,74,0.14);
-  border-radius:3px; font-size:0.88rem;
-  font-family:inherit;
-}
-.fe-row-actions{ display:flex; gap:4px; }
-.fe-row-actions button{
-  width:26px; height:26px;
-  border:1px solid rgba(27,42,74,0.14);
-  background:#fff; border-radius:3px;
-  cursor:pointer; font-size:0.85rem;
-}
-.fe-row-actions button:hover{ background:#F8F4E9; }
-.fe-row-actions button.danger{ color:#b23b3b; border-color:#f0c8c2; }
-.fe-check{
-  display:flex; align-items:center; gap:6px;
-  font-size:0.82rem; color:#3a4560; white-space:nowrap;
-}
-.fe-add{
-  align-self:flex-start;
-  padding:7px 14px;
-  background:#F8F4E9;
-  border:1px dashed rgba(27,42,74,0.22);
-  border-radius:3px;
-  font-size:0.85rem;
-  color:#1B2A4A;
-  cursor:pointer;
-  font-family:inherit;
-}
-.fe-add:hover{ background:#B8912F; color:#fff; border-style:solid; border-color:#B8912F; }
-
-.fe-select, .fe-code{
-  padding:9px 12px;
-  border:1px solid rgba(27,42,74,0.14);
-  border-radius:3px;
-  font-family:inherit; font-size:0.9rem;
-  background:#fff;
-}
-.fe-code{ font-family:'Courier New', monospace; font-size:0.85rem; resize:vertical; }
-
-.field-editor textarea{
-  padding:9px 12px;
-  border:1px solid rgba(27,42,74,0.14);
-  border-radius:3px;
-  font-family:inherit; font-size:0.9rem; resize:vertical;
-}
-
-.ee-cover-block {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.ee-cover-preview {
-  position: relative;
-  width: 100%;
-  max-width: 260px;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid rgba(27,42,74,0.14);
-  background: #F8F4E9;
-}
-.ee-cover-preview img {
-  width: 100%;
-  display: block;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-}
-.ee-cover-remove {
-  position: absolute;
-  top: 6px; right: 6px;
-  width: 26px; height: 26px;
-  background: rgba(0,0,0,0.65);
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  font-size: 1rem;
-  cursor: pointer;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.ee-cover-remove:hover { background: #b23b3b; }
-.ee-cover-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.ee-cover-actions input[type="text"] {
-  flex: 1;
-  min-width: 200px;
-  padding: 9px 12px;
-  border: 1px solid rgba(27,42,74,0.14);
-  border-radius: 3px;
-  font-family: inherit;
-  font-size: 0.9rem;
-}
-.ee-cover-upload {
-  padding: 9px 16px;
-  background: #1B2A4A;
-  color: #F8F4E9;
-  border: 1px solid #1B2A4A;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 0.88rem;
-  white-space: nowrap;
-  transition: .15s;
-}
-.ee-cover-upload:hover { background: #6E2C2C; border-color: #6E2C2C; }
+.fe-empty{ color:#7b8399; font-style:italic; font-size:0.88rem; margin:0; }
 `;

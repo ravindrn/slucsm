@@ -57,7 +57,6 @@ export default function GalleryEditor({ data, onChange, eventId }) {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      /* res.files = [{ _id, url, filename, ... }] */
       const added = (res.files || []).map((f) => ({
         url: f.url,
         caption: "",
@@ -72,9 +71,7 @@ export default function GalleryEditor({ data, onChange, eventId }) {
     }
   };
 
-  const onPickFiles = (e) => {
-    uploadFiles(e.target.files);
-  };
+  const onPickFiles = (e) => uploadFiles(e.target.files);
 
   const onDrop = (e) => {
     e.preventDefault();
@@ -200,7 +197,6 @@ export default function GalleryEditor({ data, onChange, eventId }) {
           <input
             type="text"
             placeholder="https://res.cloudinary.com/..."
-            id={`gallery-url-${Math.random().toString(36).slice(2, 6)}`}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
