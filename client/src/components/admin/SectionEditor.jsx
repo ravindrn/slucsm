@@ -1,6 +1,12 @@
 import { FIELD_EDITORS, SECTION_KINDS, defaultDataFor, labelFor } from "./fieldEditors/index.jsx";
 
-export default function SectionEditor({ section, onChange, onRemove, onMove }) {
+export default function SectionEditor({
+  section,
+  onChange,
+  onRemove,
+  onMove,
+  eventId,
+}) {
   const kind = section.kind;
   const Editor = FIELD_EDITORS[kind];
 
@@ -8,7 +14,6 @@ export default function SectionEditor({ section, onChange, onRemove, onMove }) {
   const setData = (newData) => onChange({ ...section, data: newData });
 
   const changeKind = (newKind) => {
-    /* When kind changes, reset data to defaults */
     const reset = window.confirm(
       "Changing the section type will reset its content. Continue?"
     );

@@ -336,15 +336,15 @@ export default function EventEditor() {
           ) : (
             <div className="ee-sections">
               {form.sections.map((s, i) => (
-                <SectionEditor
-                key={i}
-                section={s}
-                onChange={(newSec) => updateSection(i, newSec)}
-                onRemove={() => removeSection(i)}
-                onMove={(dir) => moveSection(i, dir)}
-                eventId={isNew ? null : id}
-              />
-              ))}
+  <SectionEditor
+    key={i}
+    section={s}
+    onChange={(newSec) => updateSection(i, newSec)}
+    onRemove={() => removeSection(i)}
+    onMove={(dir) => moveSection(i, dir)}
+    eventId={isNew ? null : id}
+  />
+))}
             </div>
           )}
 
