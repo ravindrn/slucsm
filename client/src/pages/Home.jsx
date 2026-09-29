@@ -284,6 +284,7 @@ export default function Home() {
                 <h3>{m.name}</h3>
                 <p className="role">{m.role}</p>
                 {m.university && <p className="uni">{m.university}</p>}
+                {m.bio && <p className="bio">{m.bio}</p>}
               </div>
             ))}
           </div>
@@ -319,6 +320,7 @@ export default function Home() {
                 <h3>{m.name}</h3>
                 <p className="role">{m.role}</p>
                 <p className="uni">{m.university}</p>
+                {m.bio && <p className="bio">{m.bio}</p>}
               </div>
             ))
           )}
@@ -536,7 +538,6 @@ html, body, #root{
   background:linear-gradient(180deg, rgba(184,145,47,0.06), rgba(184,145,47,0.02));
 }
 
-/* Grid for spiritual leaders — always centered, sized to fit */
 .slucsm .committee.spiritual{
   display:flex;
   flex-wrap:wrap;
@@ -547,7 +548,6 @@ html, body, #root{
   margin:0 auto;
 }
 
-/* Each spiritual member card — centered content, no width stretch */
 .slucsm .committee.spiritual .member{
   display:flex;
   flex-direction:column;
@@ -557,7 +557,6 @@ html, body, #root{
   max-width:100%;
 }
 
-/* Bigger, gold-ringed avatars for spiritual leaders */
 .slucsm .avatar.spiritual{
   border:2px solid var(--gold);
   box-shadow:0 6px 24px rgba(184,145,47,0.22);
@@ -575,7 +574,6 @@ html, body, #root{
   margin:0 0 4px;
 }
 
-/* ---------- Mobile: strict centering ---------- */
 @media (max-width:640px){
   .slucsm .committee.spiritual{
     gap:32px 20px;
@@ -622,6 +620,23 @@ html, body, #root{
 .slucsm .member h3{ font-size:1.2rem; margin:0 0 4px; font-weight:600; }
 .slucsm .member .role{ font-size:0.85rem; color:var(--maroon); margin:0 0 4px; }
 .slucsm .member .uni{ font-size:0.82rem; color:#6c7590; margin:0; }
+
+/* ---------- BIO ---------- */
+.slucsm .member .bio{
+  font-size:0.78rem;
+  color:#6c7590;
+  font-style:italic;
+  line-height:1.5;
+  margin:8px 0 0;
+  max-width:220px;
+  margin-left:auto;
+  margin-right:auto;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+
 @media (max-width:760px){ .slucsm .committee{ grid-template-columns:repeat(2,1fr); } }
 @media (max-width:480px){ .slucsm .committee{ grid-template-columns:1fr; } }
 

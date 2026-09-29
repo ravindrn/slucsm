@@ -6,10 +6,10 @@ const CommitteeMemberSchema = new mongoose.Schema(
     role: { type: String, required: true, trim: true },
     university: { type: String, default: "", trim: true },
     initials: { type: String, default: "", trim: true },
-    photo: { type: String, default: "" },   // /uploads/... or full URL
+    photo: { type: String, default: "" },
+    year: { type: String, default: "" },
+    bio: { type: String, default: "", trim: true, maxlength: 500 },
 
-    /* Grouping — useful for multiple committees / years */
-    year: { type: String, default: "" },     // "2025/26"
     category: {
       type: String,
       enum: ["executive", "spiritual", "coordinator", "other"],
@@ -18,7 +18,6 @@ const CommitteeMemberSchema = new mongoose.Schema(
 
     email: { type: String, default: "" },
     phone: { type: String, default: "" },
-
     order: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
   },

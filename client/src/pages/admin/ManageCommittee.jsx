@@ -8,6 +8,7 @@ const EMPTY_SPIRITUAL = {
   initials: "",
   photo: "",
   year: "",
+  bio: "",
   category: "spiritual",
   email: "",
   phone: "",
@@ -22,6 +23,7 @@ const EMPTY_MEMBER = {
   initials: "",
   photo: "",
   year: "",
+  bio: "",
   category: "executive",
   email: "",
   phone: "",
@@ -147,6 +149,7 @@ export default function ManageCommittee() {
       initials: m.initials || "",
       photo: m.photo || "",
       year: m.year || "",
+      bio: m.bio || "",
       category: "spiritual",
       email: m.email || "",
       phone: m.phone || "",
@@ -263,6 +266,7 @@ export default function ManageCommittee() {
       initials: m.initials || "",
       photo: m.photo || "",
       year: m.year || "",
+      bio: m.bio || "",
       category: m.category || "executive",
       email: m.email || "",
       phone: m.phone || "",
@@ -448,6 +452,17 @@ export default function ManageCommittee() {
               </div>
             </div>
 
+            <label>Short description</label>
+            <textarea
+              rows={3}
+              value={spiritualForm.bio}
+              onChange={(e) => setSpiritual("bio", e.target.value)}
+              placeholder="A brief note about this person (max 500 chars)"
+              maxLength={500}
+              className="mc-bio-input"
+            />
+            <p className="mc-bio-counter">{spiritualForm.bio.length}/500</p>
+
             <label className="mc-toggle">
               <input
                 type="checkbox"
@@ -514,6 +529,13 @@ export default function ManageCommittee() {
                     <div className="mc-member-info">
                       <strong>{m.name}</strong>
                       <span className="mc-member-role">{m.role}</span>
+                      {m.bio && (
+                        <span className="mc-member-bio" title={m.bio}>
+                          {m.bio.length > 80
+                            ? m.bio.slice(0, 80) + "…"
+                            : m.bio}
+                        </span>
+                      )}
                     </div>
 
                     <div className="mc-member-actions">
@@ -708,6 +730,17 @@ export default function ManageCommittee() {
               </div>
             </div>
 
+            <label>Short description</label>
+            <textarea
+              rows={3}
+              value={memberForm.bio}
+              onChange={(e) => setMember("bio", e.target.value)}
+              placeholder="A brief note about this person (max 500 chars)"
+              maxLength={500}
+              className="mc-bio-input"
+            />
+            <p className="mc-bio-counter">{memberForm.bio.length}/500</p>
+
             <div className="mc-grid-2">
               <div>
                 <label>Order</label>
@@ -792,6 +825,13 @@ export default function ManageCommittee() {
                       )}
                       {m.year && (
                         <span className="mc-member-year">{m.year}</span>
+                      )}
+                      {m.bio && (
+                        <span className="mc-member-bio" title={m.bio}>
+                          {m.bio.length > 80
+                            ? m.bio.slice(0, 80) + "…"
+                            : m.bio}
+                        </span>
                       )}
                     </div>
 
@@ -956,6 +996,30 @@ const css = `
 }
 .mc-grid-2 > div{ min-width:0; }
 
+/* ---------- BIO ---------- */
+.mc-bio-input{
+  width:100%;
+  padding:9px 12px;
+  border:1px solid rgba(27,42,74,0.14);
+  border-radius:3px;
+  font-family:inherit;
+  font-size:0.9rem;
+  resize:vertical;
+  min-height:70px;
+  background:#fff;
+}
+.mc-bio-input:focus{
+  outline:none;
+  border-color:#B8912F;
+  box-shadow:0 0 0 3px rgba(184,145,47,0.12);
+}
+.mc-bio-counter{
+  font-size:0.72rem;
+  color:#7b8399;
+  text-align:right;
+  margin:-4px 0 4px;
+}
+
 /* ---------- PHOTO ---------- */
 .mc-photo-block{
   display:flex; align-items:center; gap:16px;
@@ -1103,6 +1167,17 @@ const css = `
 .mc-member-year{
   font-size:0.72rem; color:#B8912F;
   font-weight:600;
+}
+.mc-member-bio{
+  font-size:0.78rem;
+  color:#6c7590;
+  font-style:italic;
+  line-height:1.4;
+  margin-top:2px;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
 }
 
 .mc-member-actions{
