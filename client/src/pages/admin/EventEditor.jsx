@@ -236,14 +236,60 @@ export default function EventEditor() {
                 onChange={(e) => set("endDate", e.target.value)}
               />
             </Field>
-            <Field label="Cover image URL">
-              <input
-                type="text"
-                value={form.coverImage}
-                onChange={(e) => set("coverImage", e.target.value)}
-                placeholder="/uploads/... or https://..."
-              />
-            </Field>
+            <Field label="Cover image">
+  <div className="ee-cover-block">
+    {form.coverImage && (
+      <div className="ee-cover-preview">
+        <img src={imgUrl(form.coverImage)} alt="Cover preview" />
+        <button
+          type="button"
+          className="ee-cover-remove"
+          onClick={() => set("coverImage", "")}
+          title="Remove cover"
+        >
+          ×
+        </button>
+      </div>
+    )}
+
+    <div className="ee-cover-actions">
+      <input
+        type="text"
+        value={form.coverImage}
+        onChange={(e) => set("coverImage", e.target.value)}
+        placeholder="https://res.cloudinary.com/... or paste URL"
+      />
+      <label className="ee-cover-upload">
+        📷 Upload
+        <input
+          type="file"
+          accept="image/*"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            try {
+              const fd = new FormData();
+              fd.append("files", file);
+              if (!isNew) fd.append("eventId", id);
+              fd.append("tag", "event-cover");
+
+              const { data } = await api.post("/media", fd, {
+                headers: { "Content-Type": "multipart/form-data" },
+              });
+
+              const uploaded = data.files?.[0];
+              if (uploaded) set("coverImage", uploaded.url);
+            } catch (err) {
+              alert(err.response?.data?.message || "Upload failed");
+            }
+            e.target.value = "";
+          }}
+          hidden
+        />
+      </label>
+    </div>
+  </div>
+</Field>
             <Field label="Order">
               <input
                 type="number"
@@ -291,12 +337,13 @@ export default function EventEditor() {
             <div className="ee-sections">
               {form.sections.map((s, i) => (
                 <SectionEditor
-                  key={i}
-                  section={s}
-                  onChange={(newSec) => updateSection(i, newSec)}
-                  onRemove={() => removeSection(i)}
-                  onMove={(dir) => moveSection(i, dir)}
-                />
+                key={i}
+                section={s}
+                onChange={(newSec) => updateSection(i, newSec)}
+                onRemove={() => removeSection(i)}
+                onMove={(dir) => moveSection(i, dir)}
+                eventId={isNew ? null : id}
+              />
               ))}
             </div>
           )}
@@ -593,4 +640,67 @@ const css = `
   border-radius:3px;
   font-family:inherit; font-size:0.9rem; resize:vertical;
 }
+
+.ee-cover-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ee-cover-preview {
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(27,42,74,0.14);
+  background: #F8F4E9;
+}
+.ee-cover-preview img {
+  width: 100%;
+  display: block;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.ee-cover-remove {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 26px; height: 26px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ee-cover-remove:hover { background: #b23b3b; }
+.ee-cover-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ee-cover-actions input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 9px 12px;
+  border: 1px solid rgba(27,42,74,0.14);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+.ee-cover-upload {
+  padding: 9px 16px;
+  background: #1B2A4A;
+  color: #F8F4E9;
+  border: 1px solid #1B2A4A;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  transition: .15s;
+}
+.ee-cover-upload:hover { background: #6E2C2C; border-color: #6E2C2C; }
 `;

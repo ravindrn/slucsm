@@ -81,7 +81,11 @@ export default function SectionEditor({ section, onChange, onRemove, onMove }) {
         />
 
         {Editor ? (
-          <Editor data={section.data || {}} onChange={setData} />
+          <Editor
+            data={section.data || {}}
+            onChange={setData}
+            eventId={eventId}
+          />
         ) : (
           <p className="fe-empty">No editor for this section type.</p>
         )}
