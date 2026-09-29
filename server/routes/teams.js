@@ -58,7 +58,7 @@ router.post("/login", async (req, res) => {
     res
       .cookie("teamToken", token, {
         httpOnly: true,
-        sameSite: "lax",        // ← first-party via Vercel proxy
+        sameSite: "lax",
         secure: true,
         maxAge: 30 * 24 * 3600 * 1000,
       })
@@ -83,18 +83,25 @@ router.post("/logout", (_req, res) =>
 
 /* ============================================================
    TEAM DASHBOARD
+   ----------------------------------------------------------
+   Returns:
+     - All COMPLETED tasks (any submission approved)
+     - The CURRENT actionable task(s) (unlocked, not yet approved)
+     - Hides all FUTURE tasks entirely
    ============================================================ */
 router.get("/me", teamAuth, async (req, res) => {
   try {
     const team = await Team.findById(req.team.teamId).select("-passwordHash");
     if (!team) return res.status(404).json({ message: "Team not found" });
 
+    /* All active tasks for this event, sorted by order */
     const allTasks = await Task.find({
       eventId: team.eventId,
       active: true,
       $or: [{ assignedTo: { $size: 0 } }, { assignedTo: team._id }],
     }).sort("order");
 
+    /* All submissions for this team */
     const submissions = await Submission.find({
       teamId: team._id,
     }).populate(
@@ -102,29 +109,31 @@ router.get("/me", teamAuth, async (req, res) => {
       "title points pointsPerItem submissionType maxFiles allowVideo order"
     );
 
+    /* Compute unlock state */
     const { unlocked } = computeTaskUnlocks(
       allTasks,
       submissions,
       team.unlockedOverride || []
     );
 
-    const tasks = allTasks.map((t) => {
+    /* Which tasks have at least one APPROVED submission? */
+    const approvedTaskIds = new Set(
+      submissions
+        .filter((s) => s.status === "approved")
+        .map((s) => String(s.taskId?._id || s.taskId))
+    );
+
+    /* Filter: keep only tasks that are either
+         - unlocked (currently actionable), OR
+         - have an approved submission (already completed)
+       All other tasks (locked + not completed) are hidden entirely. */
+    const visibleTasks = allTasks.filter((t) => {
       const taskId = String(t._id);
-      if (unlocked.has(taskId)) {
-        return t.toObject();
-      }
-      return {
-        _id: t._id,
-        title: t.title,
-        points: t.points,
-        pointsPerItem: t.pointsPerItem,
-        order: t.order,
-        submissionType: t.submissionType,
-        maxFiles: t.maxFiles,
-        allowVideo: t.allowVideo,
-        locked: true,
-      };
+      return unlocked.has(taskId) || approvedTaskIds.has(taskId);
     });
+
+    /* Return the full task objects — no more "locked" stubs */
+    const tasks = visibleTasks.map((t) => t.toObject());
 
     res.json({ team, tasks, submissions });
   } catch (e) {
