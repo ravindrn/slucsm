@@ -34,7 +34,7 @@ export default function TeamDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
-  /* Map submissions by taskId (keeps the most recent for single/multi tasks) */
+  /* Map submissions by taskId — keep most recent per task */
   const submissionByTask = useMemo(() => {
     const m = {};
     for (const s of submissions) {
@@ -42,17 +42,14 @@ export default function TeamDashboard() {
       const existing = m[key];
       if (!existing) {
         m[key] = s;
-      } else {
-        // keep the most recently created one for display
-        if (new Date(s.createdAt) > new Date(existing.createdAt)) {
-          m[key] = s;
-        }
+      } else if (new Date(s.createdAt) > new Date(existing.createdAt)) {
+        m[key] = s;
       }
     }
     return m;
   }, [submissions]);
 
-  /* Count distinct approved task IDs */
+  /* Count distinct approved tasks */
   const completedCount = useMemo(() => {
     const approved = new Set();
     for (const s of submissions) {
@@ -63,7 +60,7 @@ export default function TeamDashboard() {
     return approved.size;
   }, [submissions]);
 
-  /* Count total approved submissions (for progress tasks — shows multiple) */
+  /* Count approved submissions (for progress display) */
   const approvedSubmissionCount = useMemo(
     () => submissions.filter((s) => s.status === "approved").length,
     [submissions]
@@ -155,7 +152,7 @@ export default function TeamDashboard() {
 
             {tasks.length === 0 ? (
               <p className="td-empty">
-                No tasks assigned yet. Check back soon.
+                No tasks available yet. Check back soon.
               </p>
             ) : (
               <ul className="td-task-list">
@@ -163,8 +160,8 @@ export default function TeamDashboard() {
                   const sub = submissionByTask[t._id];
                   const status = sub?.status || "todo";
                   const isProgress = t.submissionType === "progress";
+                  const isInfoOnly = t.submittable === false;
 
-                  /* Count approved submissions for this specific task */
                   const approvedForTask = submissions.filter(
                     (s) =>
                       (s.taskId?._id || s.taskId) === t._id &&
@@ -177,11 +174,22 @@ export default function TeamDashboard() {
                   ).length;
 
                   return (
-                    <li key={t._id} className={`td-task td-task-${status}`}>
+                    <li
+                      key={t._id}
+                      className={`td-task td-task-${status}${
+                        isInfoOnly ? " td-task-info" : ""
+                      }`}
+                    >
                       <div className="td-task-main">
                         <div className="td-task-head">
-                          <span className={`td-task-badge ${status}`}>
-                            {isProgress && approvedForTask > 0
+                          <span
+                            className={`td-task-badge ${
+                              isInfoOnly ? "info" : status
+                            }`}
+                          >
+                            {isInfoOnly
+                              ? "Info"
+                              : isProgress && approvedForTask > 0
                               ? `${approvedForTask} approved`
                               : status === "todo"
                               ? "To do"
@@ -192,7 +200,9 @@ export default function TeamDashboard() {
                               : "Rejected"}
                           </span>
                           {isProgress && (
-                            <span className="td-task-type progress">progress</span>
+                            <span className="td-task-type progress">
+                              progress
+                            </span>
                           )}
                           {!isProgress && t.submissionType === "multi" && (
                             <span className="td-task-type multi">
@@ -223,7 +233,9 @@ export default function TeamDashboard() {
                                 className="td-task-file"
                               >
                                 {f.type === "video" ? (
-                                  <div className="td-task-video-badge">▶ video</div>
+                                  <div className="td-task-video-badge">
+                                    ▶ video
+                                  </div>
                                 ) : (
                                   <img
                                     src={imgUrl(f.url)}
@@ -256,16 +268,16 @@ export default function TeamDashboard() {
                           <p className="td-task-note">📝 {sub.note}</p>
                         )}
 
-                        {/* Progress info for incremental tasks */}
-                        {isProgress && (approvedForTask > 0 || pendingForTask > 0) && (
-                          <p className="td-progress-info">
-                            ✓ {approvedForTask} approved
-                            {pendingForTask > 0 &&
-                              ` · ⏳ ${pendingForTask} pending`}
-                            {t.pointsPerItem > 0 &&
-                              ` · each = ${t.pointsPerItem} pts`}
-                          </p>
-                        )}
+                        {isProgress &&
+                          (approvedForTask > 0 || pendingForTask > 0) && (
+                            <p className="td-progress-info">
+                              ✓ {approvedForTask} approved
+                              {pendingForTask > 0 &&
+                                ` · ⏳ ${pendingForTask} pending`}
+                              {t.pointsPerItem > 0 &&
+                                ` · each = ${t.pointsPerItem} pts`}
+                            </p>
+                          )}
                       </div>
 
                       <div className="td-task-side">
@@ -282,8 +294,10 @@ export default function TeamDashboard() {
                           </span>
                         </div>
 
-                        {isProgress ? (
-                          /* Progress tasks: always allow another submission */
+                        {/* Button / status area */}
+                        {isInfoOnly ? (
+                          <div className="td-task-info-badge">📢 Info</div>
+                        ) : isProgress ? (
                           <button
                             className="td-task-btn"
                             onClick={() => setActiveTask(t)}
@@ -561,6 +575,12 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   align-items:center;
 }
 .td-task:last-child{ border-bottom:none; }
+.td-task-info{
+  background:rgba(44,93,160,0.04);
+  margin:0 -8px;
+  padding:20px 8px;
+  border-radius:4px;
+}
 .td-task-head{
   display:flex; align-items:center; gap:10px;
   margin-bottom:8px;
@@ -575,6 +595,7 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 .td-task-badge.pending{ background:#FFF4D6; color:#8a6d10; }
 .td-task-badge.approved{ background:#E3F3E5; color:#2e7d32; }
 .td-task-badge.rejected{ background:#FBE4E4; color:#b23b3b; }
+.td-task-badge.info{ background:#E5F0FF; color:#2c5da0; }
 .td-task-type{
   font-size:0.7rem; color:#7b8399;
   text-transform:uppercase; letter-spacing:0.06em;
@@ -696,6 +717,17 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   color:#2e7d32; font-weight:600;
   font-family:'Cormorant Garamond', serif;
   font-size:1.2rem;
+}
+.td-task-info-badge{
+  display:inline-block;
+  padding:9px 16px;
+  background:#E5F0FF;
+  color:#2c5da0;
+  border-radius:3px;
+  font-size:0.82rem;
+  font-weight:600;
+  white-space:nowrap;
+  letter-spacing:0.02em;
 }
 
 /* ---------- LEADERBOARD ---------- */

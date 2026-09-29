@@ -14,7 +14,7 @@ const router = express.Router();
    Body (multipart):
      taskId       — the task being submitted
      note         — optional note
-     labels       — JSON array of labels matching file order (e.g. ["Black","Blue"])
+     labels       — JSON array of labels matching file order
      files[]      — one or more files
    ============================================================ */
 router.post(
@@ -27,6 +27,15 @@ router.post(
 
       const task = await Task.findById(taskId);
       if (!task) return res.status(404).json({ message: "Task not found" });
+
+      /* ---------- REJECT NON-SUBMITTABLE TASKS ---------- */
+      if (task.submittable === false) {
+        return res.status(400).json({
+          message:
+            "This task doesn't accept submissions — it's admin-awarded.",
+        });
+      }
+      /* --------------------------------------------------- */
 
       /* ---------- CHECK IF TASK IS UNLOCKED FOR THIS TEAM ---------- */
       const allTasks = await Task.find({
@@ -75,9 +84,9 @@ router.post(
       }));
 
       /* ------------------------------------------------------------
-         EXISTING BEHAVIOR — unchanged for now.
-         Progress tasks: create new submission each time.
-         Single/multi: upsert (replace previous if not approved).
+         Submission behavior:
+           progress  → create a new submission each time
+           single/multi → replace previous if not approved
          ------------------------------------------------------------ */
       let sub;
       if (task.submissionType === "progress") {
@@ -97,6 +106,21 @@ router.post(
 
         if (existing && existing.status === "approved") {
           return res.status(400).json({ message: "Task already approved" });
+        }
+
+        /* Delete old files from Cloudinary before replacing */
+        if (existing?.files?.length) {
+          for (const f of existing.files) {
+            if (f.publicId) {
+              try {
+                await cloudinary.uploader.destroy(f.publicId, {
+                  resource_type: f.type === "video" ? "video" : "image",
+                });
+              } catch (e) {
+                console.warn("Cloudinary delete failed:", e.message);
+              }
+            }
+          }
         }
 
         sub = await Submission.findOneAndUpdate(
@@ -134,7 +158,7 @@ router.get("/event/:eventId", protect, async (req, res) => {
 });
 
 /* ============================================================
-   ADMIN: list submissions for a specific team + task
+   ADMIN: submissions for a specific team + task
    ============================================================ */
 router.get("/team/:teamId/task/:taskId", protect, async (req, res) => {
   const subs = await Submission.find({
@@ -146,7 +170,6 @@ router.get("/team/:teamId/task/:taskId", protect, async (req, res) => {
 
 /* ============================================================
    ADMIN: approve / reject / adjust score
-   Body: { status, score, itemsScored: [{ label, points }] }
    ============================================================ */
 router.put("/:id", protect, async (req, res) => {
   try {
@@ -169,10 +192,8 @@ router.put("/:id", protect, async (req, res) => {
       task.pointsPerItem > 0 &&
       sub.files?.length > 0
     ) {
-      /* Auto-score: pointsPerItem × number of files */
       finalScore = task.pointsPerItem * sub.files.length;
     } else if (status === "approved" && !score && task?.points) {
-      /* Default: award the task's base points */
       finalScore = task.points;
     }
 
