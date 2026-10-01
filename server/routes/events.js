@@ -2,6 +2,7 @@ import express from "express";
 import Event from "../models/Event.js";
 import { protect } from "../middleware/auth.js";
 import { upload } from "../middleware/upload.js";
+import sanitizeHtml from "sanitize-html";
 
 const router = express.Router();
 
