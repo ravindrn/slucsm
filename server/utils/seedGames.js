@@ -10,17 +10,71 @@ dotenv.config();
 const EVENT_SLUG = "seminar-2026";
 
 /* ============================================================
-   ALL 18 GAMES
+   TASK 1 — EARLY BIRD (informational, no submission)
    ============================================================ */
-const GAMES = [
+const TASK_1 = {
+  title: "🌟 Early Bird Bonus",
+  description: `Think the points start when the outdoor games start? WRONG. 😌
+
+The FIRST 5 TEAMS to be present for ALL sessions and tasks will receive ADDITIONAL marks.
+
+Don't waste time. Drag your group members and start collecting those additional marks! 👀
+
+**How to complete this task:**
+- Simply read this and click "I've read this" to unlock Task 2
+- Points will be awarded manually by the organisers based on attendance`,
+  points: 0,
+  submissionType: "single",
+  allowVideo: false,
+  maxFiles: 1,
+  submittable: false,
+  requiresPrevious: false,
+  group: "early-bird",
+  isGroupIntro: false,
+  hasStartGate: false,
+  order: 0,
+};
+
+/* ============================================================
+   TASK 2 — CHAOS CHALLENGES (intro + 18 challenges)
+   ============================================================ */
+const TASK_2_INTRO = {
+  title: "🎮 NS Chaos Challenges",
+  description: `Welcome to the main event! This is where things get wild. 🔥
+
+You have **18 challenges** ahead of you. Each one tests your creativity, teamwork, and courage. Complete them in order — the next challenge unlocks only after the previous one is approved by the organisers.
+
+**Rules:**
+- Challenges unlock one at a time in order
+- Submit your proof, wait for approval, then the next challenge appears
+- Points are awarded on approval
+- Some challenges require photos, some require videos — check the description
+- Be creative, be bold, be ridiculous 😄
+
+Ready? Click Start below to see your first challenge.`,
+  points: 0,
+  submissionType: "single",
+  allowVideo: false,
+  maxFiles: 1,
+  submittable: false,
+  requiresPrevious: false,
+  group: "chaos-challenges",
+  isGroupIntro: true,
+  hasStartGate: true,
+  order: 1,
+};
+
+/* ============================================================
+   THE 18 CHALLENGES
+   ============================================================ */
+const CHALLENGES = [
   {
     title: "Breaking News: NS Edition 📰",
     points: 20,
     submissionType: "single",
     allowVideo: true,
     maxFiles: 1,
-    order: 1,
-    requiresPrevious: false,
+    order: 2,
     description: `Something absolutely ridiculous has happened at NS… and your team is now the official news channel.
 
 Create a fake breaking-news report about the most ridiculous thing that happened during the seminar.
@@ -33,7 +87,7 @@ Create a fake breaking-news report about the most ridiculous thing that happened
     submissionType: "single",
     allowVideo: true,
     maxFiles: 1,
-    order: 2,
+    order: 3,
     description: `You have 30 seconds to prove your group belongs in the music industry.
 
 🎵 Create a 30-second music video using one of the given songs.
@@ -58,7 +112,7 @@ Just make it entertaining! 💃🕺`,
     submissionType: "single",
     allowVideo: true,
     maxFiles: 1,
-    order: 3,
+    order: 4,
     description: `Choose a completely useless object.
 
 Now convince us that it is the greatest invention humanity has ever witnessed.
@@ -71,7 +125,7 @@ Now convince us that it is the greatest invention humanity has ever witnessed.
     submissionType: "single",
     allowVideo: true,
     maxFiles: 1,
-    order: 4,
+    order: 5,
     description: `Imitate the stereotypical student life of another university.
 
 Example: Life of a student in Colombo Med.
@@ -84,8 +138,7 @@ Example: Life of a student in Colombo Med.
     submissionType: "multi",
     allowVideo: false,
     maxFiles: 2,
-    pointsPerItem: 0,
-    order: 5,
+    order: 6,
     description: `Take TWO photos:
 
 📸 Photo 1: What you expected NS to be.
@@ -101,8 +154,7 @@ Upload BOTH photos in one submission.`,
     submissionType: "multi",
     allowVideo: false,
     maxFiles: 2,
-    pointsPerItem: 0,
-    order: 6,
+    order: 7,
     description: `Pick a meme picture.
 
 Now recreate it IRL with your group.
@@ -119,7 +171,7 @@ Same energy.
     submissionType: "single",
     allowVideo: true,
     maxFiles: 1,
-    order: 7,
+    order: 8,
     description: `Do a TikTok-style video of:
 
 "WRONG ANSWERS ONLY — NS EDITION"
@@ -133,7 +185,7 @@ Give the WRONGEST answers possible. 😭`,
     allowVideo: false,
     maxFiles: 1,
     pointsPerItem: 5,
-    order: 8,
+    order: 9,
     description: `Find 1 person wearing the given colour and take a selfie/group photo with them.
 
 Don't only stick to your own group! Drag people wearing that colour from other groups as well. 👀
@@ -155,7 +207,7 @@ Submit ONE photo per colour as separate submissions. Each approved colour = 5 po
     submissionType: "single",
     allowVideo: true,
     maxFiles: 1,
-    order: 9,
+    order: 10,
     description: `Choose a past SLUCSM committee member.
 
 Your mission is to complain and scold them about something that was actually GOOD. 😭
@@ -173,7 +225,7 @@ They also don't have to be in your group.`,
     allowVideo: true,
     maxFiles: 1,
     pointsPerItem: 5,
-    order: 10,
+    order: 11,
     description: `The current SLUCSM committee members are officially celebrities for today.
 
 Your mission:
@@ -198,7 +250,7 @@ Submit ONE photo/video per committee member as separate submissions. Each approv
     submissionType: "single",
     allowVideo: false,
     maxFiles: 1,
-    order: 11,
+    order: 12,
     description: `Take a selfie or photo of one of your favourite NS moments.
 
 Then:
@@ -219,8 +271,7 @@ Your team facilitator will check. 😌`,
     submissionType: "multi",
     allowVideo: false,
     maxFiles: 15,
-    pointsPerItem: 0,
-    order: 12,
+    order: 13,
     description: `Imagine your entire group received their Hogwarts letters.
 
 Your mission:
@@ -242,7 +293,7 @@ Upload all your Hogwarts character images in one submission.`,
     allowVideo: false,
     maxFiles: 1,
     pointsPerItem: 10,
-    order: 13,
+    order: 14,
     description: `Find පරණ ජනාධිපතිලා (past presidents) and take a picture with them.
 
 But there's a catch…
@@ -271,7 +322,7 @@ Submit ONE photo per president as separate submissions. Each approved president 
     submissionType: "single",
     allowVideo: false,
     maxFiles: 1,
-    order: 14,
+    order: 15,
     description: `Your group has officially split into TWO SIDES.
 
 Choose your teams.
@@ -288,7 +339,7 @@ And yes — ask someone else to take the photo.`,
     submissionType: "single",
     allowVideo: true,
     maxFiles: 1,
-    order: 15,
+    order: 16,
     description: `Imagine you just sat for the Scholarship Exam.
 
 You walk out of the exam hall…
@@ -305,7 +356,7 @@ Give us the most dramatic post-exam reactions possible.`,
     submissionType: "single",
     allowVideo: false,
     maxFiles: 1,
-    order: 16,
+    order: 17,
     description: `Take a creative group picture while wearing your SLUCSM wristbands.
 
 Don't have one? NO ISSUES. WE GOT YOU. 😌
@@ -320,7 +371,7 @@ Be creative!`,
     submissionType: "single",
     allowVideo: true,
     maxFiles: 1,
-    order: 17,
+    order: 18,
     description: `What if Titanic had a completely different ending?
 
 Your group has to act it out.
@@ -340,7 +391,7 @@ The more ridiculous the ending, the better.`,
     submissionType: "single",
     allowVideo: true,
     maxFiles: 1,
-    order: 18,
+    order: 19,
     description: `Time to expose your own teammates. 😭
 
 Create a short video where you expose who is who.
@@ -366,106 +417,68 @@ And finally…
 ];
 
 /* ============================================================
-   BONUS: Early Bird (as a task with 0 points — admin awards manually)
-   ============================================================ */
-const EARLY_BIRD = {
-  title: "🌟 EARLY BIRD BONUS",
-  points: 0,
-  submissionType: "single",
-  allowVideo: false,
-  maxFiles: 1,
-  order: 0,
-  requiresPrevious: false,
-  description: `Think the points start when the outdoor games start?
-WRONG. 😌
-
-The FIRST 5 TEAMS to be present for ALL sessions and tasks will receive ADDITIONAL marks.
-
-Don't waste time. Drag your group members and start collecting those additional marks! 👀
-
-(Admin will award points manually to the first 5 eligible teams.)`,
-};
-
-/* ============================================================
    RUN
    ============================================================ */
 async function run() {
   await mongoose.connect(process.env.MONGO_URI);
-  console.log("🌱 Connecting to:", mongoose.connection.name);
+  console.log("🌱 Connected to:", mongoose.connection.name);
 
-  /* Find the ongoing event */
   const event = await Event.findOne({ slug: EVENT_SLUG });
   if (!event) {
-    console.error(`❌ Event "${EVENT_SLUG}" not found. Run "npm run seed" first.`);
+    console.error(`❌ Event "${EVENT_SLUG}" not found.`);
     process.exit(1);
   }
-  console.log(`📍 Event found: ${event.title} (${event._id})`);
+  console.log(`📍 Event: ${event.title}`);
 
-  /* Wipe existing tasks for this event */
+  /* Delete all existing tasks for this event */
   const deleted = await Task.deleteMany({ eventId: event._id });
-  console.log(`🗑  Deleted ${deleted.deletedCount} existing tasks.`);
+  console.log(`🗑  Deleted ${deleted.deletedCount} existing tasks`);
 
-  /* Insert all games */
+  /* Insert Task 1, Task 2 intro, then challenges */
   const tasksToInsert = [
-    { ...EARLY_BIRD, eventId: event._id },
-    ...GAMES.map((g) => ({ ...g, eventId: event._id })),
+    { ...TASK_1, eventId: event._id },
+    { ...TASK_2_INTRO, eventId: event._id },
+    ...CHALLENGES.map((c) => ({
+      ...c,
+      eventId: event._id,
+      group: "chaos-challenges",
+      requiresPrevious: true,
+      submittable: true,
+    })),
   ];
 
   const created = await Task.insertMany(tasksToInsert);
-  console.log(`✅ Created ${created.length} tasks:`);
-  created.forEach((t, i) => {
-    const pts =
-      t.pointsPerItem > 0
-        ? `${t.pointsPerItem} pts/item`
-        : `${t.points} pts`;
-    console.log(
-      `   ${String(i).padStart(2)}. ${t.title.padEnd(45)} [${t.submissionType}] ${pts}`
-    );
+  console.log(`✅ Created ${created.length} items:`);
+  created.forEach((t) => {
+    const tags = [
+      t.group || "-",
+      t.isGroupIntro ? "INTRO" : "",
+      !t.submittable ? "no-submit" : "",
+      t.requiresPrevious ? "seq" : "free",
+    ]
+      .filter(Boolean)
+      .join(" | ");
+    console.log(`   ${String(t.order).padStart(2)}. ${t.title.padEnd(40)} [${tags}]`);
   });
 
-  /* ============================================================
-     OPTION: Create 14 teams if they don't exist
-     ============================================================ */
-  const existingTeams = await Team.countDocuments({ eventId: event._id });
-  if (existingTeams === 0) {
-    console.log("\n👥 No teams exist — creating 14 default teams...");
-
-    const teamPassword = await bcrypt.hash("team123", 10);
-    const teamNames = [
-      "Team 01", "Team 02", "Team 03", "Team 04", "Team 05",
-      "Team 06", "Team 07", "Team 08", "Team 09", "Team 10",
-      "Team 11", "Team 12", "Team 13", "Team 14",
-    ];
-    const colors = [
-      "#1B2A4A", "#6E2C2C", "#B8912F", "#77886A",
-      "#2c3e6e", "#8b3a62", "#4a7c59", "#c47a3c",
-      "#5a3a6e", "#1f5c4c", "#8a4040", "#3d5a80",
-      "#6b4423", "#5f6e3a",
-    ];
-
-    const teamDocs = teamNames.map((name, i) => ({
-      eventId: event._id,
-      name,
-      username: `team${String(i + 1).padStart(2, "0")}`,
-      passwordHash: teamPassword,
-      color: colors[i],
-      members: [],
-      totalScore: 0,
-      active: true,
-    }));
-
-    const teams = await Team.insertMany(teamDocs);
-    console.log(`✅ Created ${teams.length} teams:`);
-    teams.forEach((t) => {
-      console.log(`   ${t.name} — username: ${t.username}, password: team123`);
-    });
-  } else {
-    console.log(`\n👥 ${existingTeams} teams already exist — skipping team creation.`);
+  /* Reset team progress flags */
+  const teamCount = await Team.countDocuments({ eventId: event._id });
+  if (teamCount > 0) {
+    await Team.updateMany(
+      { eventId: event._id },
+      {
+        $set: {
+          earlyBirdRead: false,
+          earlyBirdReadAt: null,
+          chaosStartedAt: null,
+          unlockedOverride: [],
+        },
+      }
+    );
+    console.log(`\n🔄 Reset progress flags for ${teamCount} teams`);
   }
 
   console.log("\n🎉 Seed complete!");
-  console.log("   Open /admin/tasks to see all games");
-  console.log("   Open /admin/teams to manage teams");
   process.exit(0);
 }
 

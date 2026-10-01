@@ -94,7 +94,7 @@ router.get("/me", teamAuth, async (req, res) => {
     const team = await Team.findById(req.team.teamId).select("-passwordHash");
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    /* All active tasks for this event, sorted by order */
+    /* All active tasks */
     const allTasks = await Task.find({
       eventId: team.eventId,
       active: true,
@@ -106,7 +106,7 @@ router.get("/me", teamAuth, async (req, res) => {
       teamId: team._id,
     }).populate(
       "taskId",
-      "title points pointsPerItem submissionType maxFiles allowVideo order"
+      "title points pointsPerItem submissionType maxFiles allowVideo order group"
     );
 
     /* Compute unlock state */
@@ -116,26 +116,44 @@ router.get("/me", teamAuth, async (req, res) => {
       team.unlockedOverride || []
     );
 
-    /* Which tasks have at least one APPROVED submission? */
+    /* Which tasks have an approved submission? */
     const approvedTaskIds = new Set(
       submissions
         .filter((s) => s.status === "approved")
         .map((s) => String(s.taskId?._id || s.taskId))
     );
 
-    /* Filter: keep only tasks that are either
-         - unlocked (currently actionable), OR
-         - have an approved submission (already completed)
-       All other tasks (locked + not completed) are hidden entirely. */
-    const visibleTasks = allTasks.filter((t) => {
+    /* Build response — each task gets a `locked` flag */
+    const tasks = allTasks.map((t) => {
       const taskId = String(t._id);
-      return unlocked.has(taskId) || approvedTaskIds.has(taskId);
+
+      /* Visible if: unlocked OR approved OR group intro */
+      const visible =
+        t.isGroupIntro ||
+        unlocked.has(taskId) ||
+        approvedTaskIds.has(taskId);
+
+      if (!visible) {
+        return {
+          _id: t._id,
+          title: t.title,
+          order: t.order,
+          group: t.group || "",
+          locked: true,
+        };
+      }
+
+      return { ...t.toObject(), locked: false };
     });
 
-    /* Return the full task objects — no more "locked" stubs */
-    const tasks = visibleTasks.map((t) => t.toObject());
+    /* Team-level progress */
+    const progress = {
+      earlyBirdRead: !!team.earlyBirdRead,
+      earlyBirdReadAt: team.earlyBirdReadAt,
+      chaosStartedAt: team.chaosStartedAt,
+    };
 
-    res.json({ team, tasks, submissions });
+    res.json({ team, tasks, submissions, progress });
   } catch (e) {
     res.status(500).json({ message: e.message });
   }
@@ -302,6 +320,42 @@ router.put("/:id/lock-all", protect, async (req, res) => {
     );
     if (!team) return res.status(404).json({ message: "Not found" });
     res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
+
+router.put("/me/mark-early-bird-read", teamAuth, async (req, res) => {
+  try {
+    const team = await Team.findByIdAndUpdate(
+      req.team.teamId,
+      {
+        earlyBirdRead: true,
+        earlyBirdReadAt: new Date(),
+      },
+      { new: true }
+    ).select("-passwordHash");
+
+    if (!team) return res.status(404).json({ message: "Team not found" });
+    res.json({ ok: true, earlyBirdRead: true });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
+router.put("/me/start-chaos", teamAuth, async (req, res) => {
+  try {
+    const team = await Team.findById(req.team.teamId);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    /* Only set timestamp the first time */
+    if (!team.chaosStartedAt) {
+      team.chaosStartedAt = new Date();
+      await team.save();
+    }
+
+    res.json({ ok: true, chaosStartedAt: team.chaosStartedAt });
   } catch (e) {
     res.status(400).json({ message: e.message });
   }

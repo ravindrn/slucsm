@@ -23,8 +23,21 @@ const TaskSchema = new mongoose.Schema(
     maxFiles: { type: Number, default: 1 },
     requireAllItems: { type: Boolean, default: false },
 
+    /* If false, teams can't submit — admin awards manually */
+    submittable: { type: Boolean, default: true },
+
     /* ---------- SEQUENTIAL UNLOCK ---------- */
     requiresPrevious: { type: Boolean, default: true },
+
+    /* ---------- GROUPING (task hierarchy) ---------- */
+    /* "early-bird" | "chaos-challenges" (or any custom group) */
+    group: { type: String, default: "" },
+
+    /* If true, this "task" is a section header/intro card, not a real task */
+    isGroupIntro: { type: Boolean, default: false },
+
+    /* If true, this intro card requires the team to click "Start" to see the group's items */
+    hasStartGate: { type: Boolean, default: false },
 
     type: {
       type: String,

@@ -1,21 +1,20 @@
 /**
- * Compute which tasks a team has unlocked.
+ * Compute which tasks/challenges a team has unlocked.
  *
  * Rules:
- *   1. First task (lowest order) is always unlocked.
- *   2. Tasks with `requiresPrevious: false` are always unlocked.
- *   3. A task is unlocked if the previous task (by order) has at least one approved submission.
- *   4. Tasks in `team.unlockedOverride` are always unlocked.
+ *   1. First task (by order) in each group is unlocked if it's a group intro
+ *      OR if it has requiresPrevious: false.
+ *   2. Tasks with requiresPrevious: false are always unlocked.
+ *   3. A task is unlocked if the previous task in the SAME GROUP has an
+ *      approved submission.
+ *   4. Tasks in team.unlockedOverride are always unlocked.
  *
- * @param {Array}  tasks       - All active tasks for the event (unsorted ok, we sort)
- * @param {Array}  submissions - All submissions for THIS team
- * @param {Array}  overrides   - Array of task IDs the admin force-unlocked
- * @returns {{ unlocked: Set<string>, locked: Set<string> }}
+ * Group intro cards are always unlocked (they're just informational).
  */
 export function computeTaskUnlocks(tasks, submissions, overrides = []) {
   const sorted = [...tasks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-  /* Set of task IDs that have at least one approved submission */
+  /* Set of task IDs that have an approved submission */
   const approvedTaskIds = new Set(
     submissions
       .filter((s) => s.status === "approved")
@@ -27,25 +26,35 @@ export function computeTaskUnlocks(tasks, submissions, overrides = []) {
   const unlocked = new Set();
   const locked = new Set();
 
-  let previousTaskId = null;
+  /* Track previous task per group */
+  const previousTaskByGroup = {};
 
   for (let i = 0; i < sorted.length; i++) {
     const task = sorted[i];
     const taskId = String(task._id);
+    const group = task.group || "__default__";
 
-    const isFirst = i === 0;
+    /* Group intro cards are always unlocked */
+    if (task.isGroupIntro) {
+      unlocked.add(taskId);
+      previousTaskByGroup[group] = taskId;
+      continue;
+    }
+
+    const isFirstInGroup = !previousTaskByGroup[group];
     const noRequirement = task.requiresPrevious === false;
     const isOverridden = overrideSet.has(taskId);
     const previousApproved =
-      previousTaskId && approvedTaskIds.has(previousTaskId);
+      previousTaskByGroup[group] &&
+      approvedTaskIds.has(previousTaskByGroup[group]);
 
-    if (isFirst || noRequirement || isOverridden || previousApproved) {
+    if (isFirstInGroup || noRequirement || isOverridden || previousApproved) {
       unlocked.add(taskId);
     } else {
       locked.add(taskId);
     }
 
-    previousTaskId = taskId;
+    previousTaskByGroup[group] = taskId;
   }
 
   return { unlocked, locked };

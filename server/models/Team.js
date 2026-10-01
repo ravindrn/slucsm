@@ -35,12 +35,18 @@ const TeamSchema = new mongoose.Schema(
 
     /* ---------- SEQUENTIAL UNLOCK OVERRIDES ---------- */
     unlockedOverride: [{ type: mongoose.Schema.Types.ObjectId, ref: "Task" }],
+
+    /* ---------- TASK PROGRESS TRACKING ---------- */
+    /* When team confirmed they read Task 1 (Early Bird) */
+    earlyBirdRead: { type: Boolean, default: false },
+    earlyBirdReadAt: { type: Date, default: null },
+
+    /* When team clicked "Start" on Task 2 (Chaos Challenges) */
+    chaosStartedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
 
 TeamSchema.index({ eventId: 1, username: 1 }, { unique: true });
 
-const Team = mongoose.model("Team", TeamSchema);
-
-export default Team;
+export default mongoose.model("Team", TeamSchema);
