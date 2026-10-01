@@ -539,19 +539,23 @@ html, body, #root{
 }
 
 .slucsm .committee.spiritual{
-  display:grid;
-  grid-template-columns:repeat(2, 1fr);
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:flex-start;
   gap:48px 44px;
   max-width:900px;
   margin:0 auto;
 }
+
 .slucsm .committee.spiritual .member{
   display:flex;
   flex-direction:column;
   align-items:center;
   text-align:center;
   width:100%;
-  max-width:100%;
+  max-width:400px;
+  flex:0 1 400px;
 }
 
 .slucsm .committee.spiritual .member .bio{
