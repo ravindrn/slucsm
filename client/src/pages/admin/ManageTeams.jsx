@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
+import toast from "react-hot-toast";
+import { confirmDialog } from "../../lib/dialogs";
 
 const EMPTY = {
   name: "",
@@ -18,14 +20,11 @@ export default function ManageTeams() {
   const [editingId, setEditingId] = useState(null);
   const [err, setErr] = useState("");
 
-  /* QR modal state */
   const [qrTeam, setQrTeam] = useState(null);
   const [qrData, setQrData] = useState(null);
 
-  /* Task 2 unlock stats */
   const [chaosStats, setChaosStats] = useState({ unlocked: 0, total: 0 });
 
-  /* ---------- LOAD EVENTS ---------- */
   useEffect(() => {
     (async () => {
       const { data } = await api.get("/events");
@@ -39,13 +38,12 @@ export default function ManageTeams() {
     })();
   }, []);
 
-  /* ---------- LOAD TEAMS ---------- */
   const reload = async () => {
     if (!eventId) return;
     try {
       const { data } = await api.get(`/teams/event/${eventId}`);
       setTeams(data);
-    } catch (e) {
+    } catch {
       setTeams([]);
     }
   };
@@ -55,7 +53,6 @@ export default function ManageTeams() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
-  /* ---------- COMPUTE UNLOCK STATS ---------- */
   useEffect(() => {
     if (!teams.length) {
       setChaosStats({ unlocked: 0, total: 0 });
@@ -65,7 +62,6 @@ export default function ManageTeams() {
     setChaosStats({ unlocked, total: teams.length });
   }, [teams]);
 
-  /* ---------- FORM ---------- */
   const reset = () => {
     setForm(EMPTY);
     setEditingId(null);
@@ -80,13 +76,17 @@ export default function ManageTeams() {
         const payload = { ...form };
         if (!payload.password) delete payload.password;
         await api.put(`/teams/${editingId}`, payload);
+        toast.success("Team updated");
       } else {
         await api.post("/teams", { ...form, eventId });
+        toast.success("Team created");
       }
       reset();
       await reload();
     } catch (e) {
-      setErr(e.response?.data?.message || "Save failed");
+      const msg = e.response?.data?.message || "Save failed";
+      setErr(msg);
+      toast.error(msg);
     }
   };
 
@@ -103,42 +103,55 @@ export default function ManageTeams() {
   };
 
   const del = async (t) => {
-    if (!window.confirm(`Delete team "${t.name}"? This removes their submissions.`))
-      return;
-    await api.delete(`/teams/${t._id}`);
-    setTeams((list) => list.filter((x) => x._id !== t._id));
+    const ok = await confirmDialog({
+      title: "Delete team?",
+      text: `"${t.name}" and their submissions will be permanently removed.`,
+      icon: "warning",
+      danger: true,
+      confirmText: "Delete team",
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/teams/${t._id}`);
+      setTeams((list) => list.filter((x) => x._id !== t._id));
+      toast.success("Team deleted");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Delete failed");
+    }
   };
 
-  /* ---------- TASK 2 UNLOCK ---------- */
   const unlockAll = async () => {
-    if (
-      !window.confirm(
-        `Unlock Task 2 (Chaos Challenges) for ALL ${chaosStats.total} teams?\n\nTeams will be able to see and start Task 2 immediately.`
-      )
-    )
-      return;
+    const ok = await confirmDialog({
+      title: "Unlock Task 2 for all teams?",
+      text: `Chaos Challenges will become visible to all ${chaosStats.total} teams immediately.`,
+      icon: "question",
+      confirmText: "Unlock for all",
+    });
+    if (!ok) return;
     try {
       const { data } = await api.put(`/teams/unlock-chaos/${eventId}`);
-      alert(data.message || "Unlocked for all teams");
+      toast.success(data.message || "Unlocked for all teams");
       await reload();
     } catch (e) {
-      alert(e.response?.data?.message || "Failed to unlock");
+      toast.error(e.response?.data?.message || "Failed to unlock");
     }
   };
 
   const lockAll = async () => {
-    if (
-      !window.confirm(
-        `Lock Task 2 for ALL ${chaosStats.total} teams?\n\nTeams will no longer see Task 2 until you unlock again.`
-      )
-    )
-      return;
+    const ok = await confirmDialog({
+      title: "Lock Task 2 for all teams?",
+      text: "Teams will no longer see Task 2 until you unlock again.",
+      icon: "warning",
+      danger: true,
+      confirmText: "Lock for all",
+    });
+    if (!ok) return;
     try {
       const { data } = await api.put(`/teams/lock-chaos/${eventId}`);
-      alert(data.message || "Locked for all teams");
+      toast.success(data.message || "Locked for all teams");
       await reload();
     } catch (e) {
-      alert(e.response?.data?.message || "Failed to lock");
+      toast.error(e.response?.data?.message || "Failed to lock");
     }
   };
 
@@ -149,19 +162,23 @@ export default function ManageTeams() {
         : `/teams/${t._id}/unlock-chaos`;
       await api.put(url);
       await reload();
+      toast.success(
+        t.chaosUnlocked
+          ? `Task 2 locked for ${t.name}`
+          : `Task 2 unlocked for ${t.name}`
+      );
     } catch (e) {
-      alert(e.response?.data?.message || "Failed");
+      toast.error(e.response?.data?.message || "Failed");
     }
   };
 
-  /* ---------- QR ---------- */
   const openQr = async (team) => {
     try {
       const { data } = await api.get(`/qrcodes/team-preview/${team._id}`);
       setQrData(data);
       setQrTeam(team);
     } catch (e) {
-      alert(e.response?.data?.message || "Could not load QR");
+      toast.error(e.response?.data?.message || "Could not load QR");
     }
   };
 
@@ -178,13 +195,14 @@ export default function ManageTeams() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success("QR downloaded");
   };
 
   const printQr = () => {
     if (!qrData || !qrTeam) return;
     const w = window.open("", "_blank", "width=500,height=750");
     if (!w) {
-      alert("Popup blocked. Please allow popups for this site.");
+      toast.error("Popup blocked — please allow popups for this site");
       return;
     }
     const color = qrData.teamColor || "#B8912F";
@@ -223,7 +241,6 @@ export default function ManageTeams() {
     <div className="manage-teams">
       <style>{css}</style>
 
-      {/* ---------- HEAD ---------- */}
       <div className="mt-head">
         <div>
           <h1>Teams</h1>
@@ -245,7 +262,6 @@ export default function ManageTeams() {
         </select>
       </div>
 
-      {/* ---------- TASK 2 UNLOCK PANEL ---------- */}
       <div className="mt-unlock-panel">
         <div className="mt-unlock-info">
           <h3>🎮 Task 2 — Chaos Challenges</h3>
@@ -270,7 +286,6 @@ export default function ManageTeams() {
       </div>
 
       <div className="mt-layout">
-        {/* ---------- FORM ---------- */}
         <form className="mt-form" onSubmit={submit}>
           <h2>{editingId ? "Edit team" : "New team"}</h2>
           {err && <div className="mt-error">{err}</div>}
@@ -336,7 +351,6 @@ export default function ManageTeams() {
           </div>
         </form>
 
-        {/* ---------- LIST ---------- */}
         <div className="mt-list">
           <h2>
             {teams.length} team{teams.length !== 1 && "s"}
@@ -411,7 +425,6 @@ export default function ManageTeams() {
         </div>
       </div>
 
-      {/* ---------- QR MODAL ---------- */}
       {qrTeam && qrData && (
         <div className="mt-modal-overlay" onClick={closeQr}>
           <div className="mt-modal" onClick={(e) => e.stopPropagation()}>
@@ -458,7 +471,6 @@ export default function ManageTeams() {
 const css = `
 .manage-teams{ color:#1B2A4A; }
 
-/* ---------- HEAD ---------- */
 .mt-head{
   display:flex; align-items:flex-start; justify-content:space-between;
   gap:16px; flex-wrap:wrap; margin-bottom:20px;
@@ -476,7 +488,6 @@ const css = `
   min-width:220px;
 }
 
-/* ---------- TASK 2 UNLOCK PANEL ---------- */
 .mt-unlock-panel{
   display:flex; align-items:center; justify-content:space-between;
   gap:16px; flex-wrap:wrap;
@@ -497,7 +508,6 @@ const css = `
 .mt-unlock-info strong{ color:#6E2C2C; font-weight:700; }
 .mt-unlock-actions{ display:flex; gap:10px; flex-wrap:wrap; }
 
-/* ---------- LAYOUT ---------- */
 .mt-layout{
   display:grid;
   grid-template-columns:380px 1fr;
@@ -508,7 +518,6 @@ const css = `
   .mt-layout{ grid-template-columns:1fr; }
 }
 
-/* ---------- FORM ---------- */
 .mt-form{
   background:#FFFDF8;
   border:1px solid rgba(27,42,74,0.14);
@@ -553,7 +562,6 @@ const css = `
   display:flex; gap:8px; margin-top:16px;
 }
 
-/* ---------- BUTTONS ---------- */
 .mt-btn{
   padding:9px 16px;
   border-radius:3px;
@@ -598,7 +606,6 @@ const css = `
   font-size:0.85rem;
 }
 
-/* ---------- LIST ---------- */
 .mt-list{
   background:#FFFDF8;
   border:1px solid rgba(27,42,74,0.14);
@@ -668,7 +675,6 @@ const css = `
   color:#7b8399; font-weight:400; font-size:0.75rem;
 }
 
-/* ---------- QR MODAL ---------- */
 .mt-modal-overlay{
   position:fixed; inset:0; z-index:100;
   background:rgba(27,42,74,0.6);
@@ -741,7 +747,6 @@ const css = `
   flex-wrap:wrap;
 }
 
-/* ---------- MOBILE ---------- */
 @media (max-width:640px){
   .mt-head{ flex-direction:column; }
   .mt-event-select{ width:100%; }

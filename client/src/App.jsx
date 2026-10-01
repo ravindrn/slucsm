@@ -4,6 +4,7 @@ import { TeamProvider } from "./context/TeamContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TeamProtectedRoute from "./components/TeamProtectedRoute";
 import SessionTimer from "./context/SessionTimer";
+import { Toaster } from "react-hot-toast";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -34,6 +35,35 @@ export default function App() {
     <AuthProvider>
       <TeamProvider>
         <SessionTimer />
+
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3500,
+            style: {
+              background: "#FFFDF8",
+              color: "#1B2A4A",
+              border: "1px solid rgba(27,42,74,0.14)",
+              borderLeft: "4px solid #B8912F",
+              borderRadius: "10px",
+              padding: "12px 16px",
+              fontSize: "0.92rem",
+              fontFamily: "Inter, sans-serif",
+              boxShadow: "0 12px 40px rgba(27,42,74,0.18)",
+              maxWidth: "380px",
+            },
+            success: {
+              duration: 3000,
+              iconTheme: { primary: "#2e7d32", secondary: "#E3F3E5" },
+              style: { borderLeft: "4px solid #2e7d32" },
+            },
+            error: {
+              duration: 5000,
+              iconTheme: { primary: "#b23b3b", secondary: "#FBE4E4" },
+              style: { borderLeft: "4px solid #b23b3b" },
+            },
+          }}
+        />
 
         <Routes>
           {/* ---------- PUBLIC ---------- */}

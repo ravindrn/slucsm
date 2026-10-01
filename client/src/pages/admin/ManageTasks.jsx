@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
+import toast from "react-hot-toast";
+import { confirmDialog, promptDialog } from "../../lib/dialogs";
 
 const EMPTY = {
   title: "",
@@ -20,7 +22,6 @@ const EMPTY = {
   order: 0,
 };
 
-/* The two built-in groups + any dynamic ones will be appended */
 const KNOWN_GROUPS = [
   { value: "early-bird", label: "Task 1 — Early Bird" },
   { value: "chaos-challenges", label: "Task 2 — Chaos Challenges" },
@@ -49,11 +50,9 @@ export default function ManageTasks() {
   const [editingId, setEditingId] = useState(null);
   const [err, setErr] = useState("");
 
-  /* QR modal state */
   const [qrTask, setQrTask] = useState(null);
   const [qrData, setQrData] = useState(null);
 
-  /* ---------- LOAD EVENTS ---------- */
   useEffect(() => {
     (async () => {
       const { data } = await api.get("/events");
@@ -67,7 +66,6 @@ export default function ManageTasks() {
     })();
   }, []);
 
-  /* ---------- LOAD TASKS ---------- */
   const reload = async () => {
     if (!eventId) return;
     const { data } = await api.get(`/tasks/event/${eventId}`);
@@ -79,9 +77,7 @@ export default function ManageTasks() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
-  /* ---------- COMPUTE GROUPS ---------- */
   const allGroups = useMemo(() => {
-    /* Collect unique group values from existing tasks */
     const seen = new Set();
     const groups = [...KNOWN_GROUPS];
 
@@ -101,7 +97,6 @@ export default function ManageTasks() {
     return groups;
   }, [tasks]);
 
-  /* Group tasks by their `group` field */
   const groupedTasks = useMemo(() => {
     const map = {};
     for (const t of tasks) {
@@ -109,16 +104,12 @@ export default function ManageTasks() {
       if (!map[g]) map[g] = [];
       map[g].push(t);
     }
-
-    /* Sort each group by order */
     Object.values(map).forEach((arr) =>
       arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     );
-
     return map;
   }, [tasks]);
 
-  /* ---------- FORM ---------- */
   const reset = () => {
     setForm(EMPTY);
     setEditingId(null);
@@ -129,11 +120,9 @@ export default function ManageTasks() {
     e.preventDefault();
     setErr("");
     try {
-      /* Auto-assign order if creating a new item */
       let finalOrder = Number(form.order) || 0;
 
       if (!editingId) {
-        /* Find max order in the target group + 1 */
         const sameGroup = tasks.filter((t) => t.group === form.group);
         if (sameGroup.length > 0 && finalOrder === 0) {
           const maxOrder = Math.max(
@@ -158,13 +147,17 @@ export default function ManageTasks() {
 
       if (editingId) {
         await api.put(`/tasks/${editingId}`, payload);
+        toast.success("Item updated");
       } else {
         await api.post("/tasks", { ...payload, eventId });
+        toast.success("Item created");
       }
       reset();
       await reload();
     } catch (e) {
-      setErr(e.response?.data?.message || "Save failed");
+      const msg = e.response?.data?.message || "Save failed";
+      setErr(msg);
+      toast.error(msg);
     }
   };
 
@@ -192,16 +185,30 @@ export default function ManageTasks() {
   };
 
   const del = async (t) => {
-    if (!window.confirm(`Delete "${t.title}"?`)) return;
-    await api.delete(`/tasks/${t._id}`);
-    setTasks((list) => list.filter((x) => x._id !== t._id));
+    const ok = await confirmDialog({
+      title: "Delete item?",
+      text: `"${t.title}" will be permanently removed.`,
+      icon: "warning",
+      danger: true,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/tasks/${t._id}`);
+      setTasks((list) => list.filter((x) => x._id !== t._id));
+      toast.success("Item deleted");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Delete failed");
+    }
   };
 
-  /* ---------- QUICK ACTIONS ---------- */
-  const startNewGroup = () => {
-    const name = window.prompt(
-      "New task group name (e.g. 'task-3' or 'bonus-round'):"
-    );
+  const startNewGroup = async () => {
+    const name = await promptDialog({
+      title: "New task group",
+      text: "Enter a short name (e.g. task-3, bonus-round)",
+      placeholder: "task-3",
+      confirmText: "Create",
+    });
     if (!name || !name.trim()) return;
 
     const cleaned = name.trim().toLowerCase().replace(/\s+/g, "-");
@@ -222,13 +229,14 @@ export default function ManageTasks() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const startNewChallenge = () => {
-    const groupList = allGroups
-      .map((g, i) => `${i + 1}. ${g.value}`)
-      .join("\n");
-    const pick = window.prompt(
-      `Which group should this challenge belong to?\n\n${groupList}\n\nEnter the group name (e.g. chaos-challenges):`
-    );
+  const startNewChallenge = async () => {
+    const groupList = allGroups.map((g) => g.value).join(", ");
+    const pick = await promptDialog({
+      title: "Which group?",
+      text: `Choose from: ${groupList}`,
+      placeholder: "chaos-challenges",
+      confirmText: "Add challenge",
+    });
     if (!pick || !pick.trim()) return;
 
     setForm({
@@ -246,14 +254,13 @@ export default function ManageTasks() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  /* ---------- QR HELPERS ---------- */
   const openQr = async (task) => {
     try {
       const { data } = await api.get(`/qrcodes/preview/${task._id}`);
       setQrData(data);
       setQrTask(task);
     } catch (e) {
-      alert(e.response?.data?.message || "Could not load QR");
+      toast.error(e.response?.data?.message || "Could not load QR");
     }
   };
 
@@ -270,12 +277,16 @@ export default function ManageTasks() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success("QR downloaded");
   };
 
   const printQr = () => {
     if (!qrData || !qrTask) return;
     const w = window.open("", "_blank", "width=500,height=700");
-    if (!w) return alert("Popup blocked");
+    if (!w) {
+      toast.error("Popup blocked — please allow popups for this site");
+      return;
+    }
     w.document.write(`
       <html>
         <head>
@@ -304,7 +315,6 @@ export default function ManageTasks() {
 
   if (loading) return <p>Loading…</p>;
 
-  /* ---------- ROW RENDERER ---------- */
   const renderTaskRow = (t, index) => (
     <li key={t._id} className="mt-task-item">
       <div className="task-points">
@@ -375,7 +385,6 @@ export default function ManageTasks() {
     </li>
   );
 
-  /* ---------- RENDER ---------- */
   return (
     <div className="manage-tasks">
       <style>{css}</style>
@@ -401,7 +410,6 @@ export default function ManageTasks() {
         </select>
       </div>
 
-      {/* ---------- QUICK ACTIONS ---------- */}
       <div className="mt-quick-actions">
         <button
           type="button"
@@ -420,7 +428,6 @@ export default function ManageTasks() {
       </div>
 
       <div className="mt-layout">
-        {/* ---------- FORM ---------- */}
         <form className="mt-form" onSubmit={submit}>
           <h2>
             {editingId
@@ -432,7 +439,6 @@ export default function ManageTasks() {
 
           {err && <div className="mt-error">{err}</div>}
 
-          {/* HINT for group intro */}
           {form.isGroupIntro && !editingId && (
             <div className="mt-form-hint">
               This creates a <strong>Task</strong> with its own instructions.
@@ -470,7 +476,6 @@ export default function ManageTasks() {
             }
           />
 
-          {/* ---------- GROUP ---------- */}
           <label>Group (task)</label>
           <div className="mt-group-picker">
             <select
@@ -700,7 +705,6 @@ export default function ManageTasks() {
           </div>
         </form>
 
-        {/* ---------- LIST ---------- */}
         <div className="mt-list">
           {Object.keys(groupedTasks).length === 0 && (
             <div className="mt-empty-state">
@@ -771,7 +775,6 @@ export default function ManageTasks() {
         </div>
       </div>
 
-      {/* ---------- QR MODAL ---------- */}
       {qrTask && qrData && (
         <div className="mt-modal-overlay" onClick={closeQr}>
           <div className="mt-modal" onClick={(e) => e.stopPropagation()}>
@@ -780,7 +783,6 @@ export default function ManageTasks() {
             </button>
             <h2>{qrTask.title}</h2>
             <p className="mt-modal-code">{qrData.qrCode}</p>
-            <img src={qrData.qrCode} alt="" style={{ display: "none" }} />
             <img src={qrData.dataUrl} alt="QR code" className="mt-qr-img" />
             <p className="mt-modal-url">
               <small>{qrData.scanUrl}</small>
@@ -821,7 +823,6 @@ const css = `
   font-size:0.9rem; color:#1B2A4A; min-width:220px;
 }
 
-/* ---------- QUICK ACTIONS ---------- */
 .mt-quick-actions{
   display:flex; gap:10px; flex-wrap:wrap;
   margin-bottom:24px;
@@ -839,7 +840,6 @@ const css = `
 .mt-layout{ display:grid; grid-template-columns:400px 1fr; gap:24px; align-items:flex-start; }
 @media (max-width:1000px){ .mt-layout{ grid-template-columns:1fr; } }
 
-/* ---------- FORM ---------- */
 .mt-form{
   background:#FFFDF8; border:1px solid rgba(27,42,74,0.14);
   border-radius:6px; padding:22px;
@@ -888,7 +888,6 @@ const css = `
 }
 .mt-grid-2 > div{ min-width:0; }
 
-/* ---------- GROUP PICKER ---------- */
 .mt-group-picker{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -898,7 +897,6 @@ const css = `
   .mt-group-picker{ grid-template-columns:1fr; }
 }
 
-/* ---------- CHECKBOX GRID ---------- */
 .mt-checkbox-grid{
   display:flex; flex-direction:column; gap:10px;
   margin-top:14px; padding:14px;
@@ -915,7 +913,6 @@ const css = `
 
 .mt-form-actions{ display:flex; gap:8px; margin-top:16px; }
 
-/* ---------- BUTTONS ---------- */
 .mt-btn{
   padding:9px 16px; border-radius:3px;
   border:1px solid rgba(27,42,74,0.14);
@@ -940,7 +937,6 @@ const css = `
   padding:10px 12px; border-radius:3px; font-size:0.85rem;
 }
 
-/* ---------- EMPTY STATE ---------- */
 .mt-empty-state{
   background:#FFFDF8;
   border:1px dashed rgba(27,42,74,0.22);
@@ -962,7 +958,6 @@ const css = `
 }
 .mt-empty-state strong{ color:#B8912F; }
 
-/* ---------- LIST ---------- */
 .mt-list{
   display:flex; flex-direction:column; gap:24px;
 }
@@ -1017,7 +1012,6 @@ const css = `
   margin:0;
 }
 
-/* Intro row highlight */
 .mt-intro-row{
   background:rgba(184,145,47,0.06);
   border-radius:6px;
@@ -1101,7 +1095,6 @@ const css = `
   display:flex; gap:6px; flex-wrap:wrap;
 }
 
-/* ---------- QR MODAL ---------- */
 .mt-modal-overlay{
   position:fixed; inset:0; z-index:100;
   background:rgba(27,42,74,0.6);
