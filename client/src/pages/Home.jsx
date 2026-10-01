@@ -539,22 +539,23 @@ html, body, #root{
 }
 
 .slucsm .committee.spiritual{
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  align-items:flex-start;
-  gap:38px 30px;
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:48px 44px;
   max-width:900px;
   margin:0 auto;
 }
-
 .slucsm .committee.spiritual .member{
   display:flex;
   flex-direction:column;
   align-items:center;
   text-align:center;
-  width:200px;
+  width:100%;
   max-width:100%;
+}
+
+.slucsm .committee.spiritual .member .bio{
+  max-width:420px;
 }
 
 .slucsm .avatar.spiritual{
@@ -575,32 +576,26 @@ html, body, #root{
 }
 
 @media (max-width:640px){
-  .slucsm .committee.spiritual{
-    gap:32px 20px;
-    padding:0 4px;
-  }
-  .slucsm .committee.spiritual .member{
-    width:100%;
-    max-width:280px;
-    margin-left:auto;
-    margin-right:auto;
-  }
+  .slucsm .committee.spiritual{ gap:32px; }
   .slucsm .avatar.spiritual{
     width:104px; height:104px;
     font-size:1.7rem;
-    margin-left:auto;
-    margin-right:auto;
   }
-  .slucsm .committee.spiritual .member h3{
-    font-size:1.2rem;
-  }
-  .slucsm .committee.spiritual .member .role{
-    font-size:0.85rem;
-  }
+  .slucsm .committee.spiritual .member h3{ font-size:1.2rem; }
+  .slucsm .committee.spiritual .member .role{ font-size:0.85rem; }
+  .slucsm .member .bio{ font-size:0.85rem; }
 }
 
 /* ==================== COMMITTEE ==================== */
-.slucsm .committee{ display:grid; grid-template-columns:repeat(3,1fr); gap:38px 30px; margin-top:10px; }
+.slucsm .committee{
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:44px 40px;
+  margin-top:10px;
+  max-width:980px;
+  margin-left:auto;
+  margin-right:auto;
+}
 .slucsm .member{ text-align:center; }
 .slucsm .avatar{
   width:96px; height:96px; border-radius:50%;
@@ -623,23 +618,26 @@ html, body, #root{
 
 /* ---------- BIO ---------- */
 .slucsm .member .bio{
-  font-size:0.78rem;
-  color:#6c7590;
-  font-style:italic;
-  line-height:1.5;
-  margin:8px 0 0;
-  max-width:220px;
+  font-size:0.88rem;
+  color:#4a5470;
+  font-style:normal;
+  line-height:1.65;
+  margin:14px 0 0;
+  max-width:420px;
   margin-left:auto;
   margin-right:auto;
+  text-align:center;
   display:-webkit-box;
-  -webkit-line-clamp:3;
+  -webkit-line-clamp:6;
   -webkit-box-orient:vertical;
   overflow:hidden;
 }
 
-@media (max-width:760px){ .slucsm .committee{ grid-template-columns:repeat(2,1fr); } }
-@media (max-width:480px){ .slucsm .committee{ grid-template-columns:1fr; } }
-
+@media (max-width:820px){
+  .slucsm .committee{ grid-template-columns:1fr; gap:38px; }
+  .slucsm .committee.spiritual{ grid-template-columns:1fr; gap:38px; }
+  .slucsm .member .bio{ max-width:100%; }
+}
 /* ==================== QUOTE + FOOTER ==================== */
 .slucsm .quote{ background:var(--ink); color:var(--ivory); text-align:center; padding:90px 6vw; }
 .slucsm .quote blockquote{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:clamp(1.5rem,3vw,2.1rem); max-width:680px; margin:0 auto 16px; font-weight:500; }
