@@ -2,14 +2,14 @@
  * Compute which tasks/challenges a team has unlocked.
  *
  * Rules:
- *   1. First task (by order) in each group is unlocked if it's a group intro
- *      OR if it has requiresPrevious: false.
+ *   1. First non-intro task in each group is unlocked.
  *   2. Tasks with requiresPrevious: false are always unlocked.
- *   3. A task is unlocked if the previous task in the SAME GROUP has an
- *      approved submission.
+ *   3. A task is unlocked if the previous NON-INTRO task in the SAME GROUP
+ *      has an approved submission.
  *   4. Tasks in team.unlockedOverride are always unlocked.
  *
- * Group intro cards are always unlocked (they're just informational).
+ * Group intro cards are always unlocked and DO NOT count as "previous" for
+ * the sequential unlock chain.
  */
 export function computeTaskUnlocks(tasks, submissions, overrides = []) {
   const sorted = [...tasks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -26,7 +26,7 @@ export function computeTaskUnlocks(tasks, submissions, overrides = []) {
   const unlocked = new Set();
   const locked = new Set();
 
-  /* Track previous task per group */
+  /* Track previous NON-INTRO task per group */
   const previousTaskByGroup = {};
 
   for (let i = 0; i < sorted.length; i++) {
@@ -34,10 +34,9 @@ export function computeTaskUnlocks(tasks, submissions, overrides = []) {
     const taskId = String(task._id);
     const group = task.group || "__default__";
 
-    /* Group intro cards are always unlocked */
+    /* Group intro cards are always unlocked and do NOT become "previous" */
     if (task.isGroupIntro) {
       unlocked.add(taskId);
-      previousTaskByGroup[group] = taskId;
       continue;
     }
 
@@ -54,6 +53,7 @@ export function computeTaskUnlocks(tasks, submissions, overrides = []) {
       locked.add(taskId);
     }
 
+    /* Record this task as "previous" for the NEXT task in the same group */
     previousTaskByGroup[group] = taskId;
   }
 
