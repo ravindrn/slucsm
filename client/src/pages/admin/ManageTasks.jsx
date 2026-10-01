@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
 
 const EMPTY = {
@@ -20,6 +20,12 @@ const EMPTY = {
   order: 0,
 };
 
+/* The two built-in groups + any dynamic ones will be appended */
+const KNOWN_GROUPS = [
+  { value: "early-bird", label: "Task 1 — Early Bird" },
+  { value: "chaos-challenges", label: "Task 2 — Chaos Challenges" },
+];
+
 const TYPES = [
   { value: "manual", label: "Manual (admin awards)" },
   { value: "checkpoint", label: "Checkpoint (in-person)" },
@@ -32,12 +38,6 @@ const SUBMISSION_TYPES = [
   { value: "single", label: "Single (1 file)" },
   { value: "multi", label: "Multi (many files, 1 submission)" },
   { value: "progress", label: "Progress (repeated submissions)" },
-];
-
-const GROUPS = [
-  { value: "", label: "(No group)" },
-  { value: "early-bird", label: "Task 1 — Early Bird" },
-  { value: "chaos-challenges", label: "Task 2 — Chaos Challenges" },
 ];
 
 export default function ManageTasks() {
@@ -68,18 +68,55 @@ export default function ManageTasks() {
   }, []);
 
   /* ---------- LOAD TASKS ---------- */
-  useEffect(() => {
-    if (!eventId) return;
-    (async () => {
-      const { data } = await api.get(`/tasks/event/${eventId}`);
-      setTasks(data);
-    })();
-  }, [eventId]);
-
   const reload = async () => {
+    if (!eventId) return;
     const { data } = await api.get(`/tasks/event/${eventId}`);
     setTasks(data);
   };
+
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
+
+  /* ---------- COMPUTE GROUPS ---------- */
+  const allGroups = useMemo(() => {
+    /* Collect unique group values from existing tasks */
+    const seen = new Set();
+    const groups = [...KNOWN_GROUPS];
+
+    for (const g of KNOWN_GROUPS) seen.add(g.value);
+
+    tasks.forEach((t) => {
+      const g = t.group;
+      if (g && !seen.has(g)) {
+        seen.add(g);
+        groups.push({
+          value: g,
+          label: g.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        });
+      }
+    });
+
+    return groups;
+  }, [tasks]);
+
+  /* Group tasks by their `group` field */
+  const groupedTasks = useMemo(() => {
+    const map = {};
+    for (const t of tasks) {
+      const g = t.group || "__ungrouped__";
+      if (!map[g]) map[g] = [];
+      map[g].push(t);
+    }
+
+    /* Sort each group by order */
+    Object.values(map).forEach((arr) =>
+      arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    );
+
+    return map;
+  }, [tasks]);
 
   /* ---------- FORM ---------- */
   const reset = () => {
@@ -92,13 +129,26 @@ export default function ManageTasks() {
     e.preventDefault();
     setErr("");
     try {
-      /* Convert number/boolean fields correctly */
+      /* Auto-assign order if creating a new item */
+      let finalOrder = Number(form.order) || 0;
+
+      if (!editingId) {
+        /* Find max order in the target group + 1 */
+        const sameGroup = tasks.filter((t) => t.group === form.group);
+        if (sameGroup.length > 0 && finalOrder === 0) {
+          const maxOrder = Math.max(
+            ...sameGroup.map((t) => t.order ?? 0)
+          );
+          finalOrder = maxOrder + 1;
+        }
+      }
+
       const payload = {
         ...form,
         points: Number(form.points) || 0,
         pointsPerItem: Number(form.pointsPerItem) || 0,
         maxFiles: Number(form.maxFiles) || 1,
-        order: Number(form.order) || 0,
+        order: finalOrder,
         submittable: !!form.submittable,
         requiresPrevious: !!form.requiresPrevious,
         allowVideo: !!form.allowVideo,
@@ -138,12 +188,62 @@ export default function ManageTasks() {
       location: t.location || "",
       order: t.order || 0,
     });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const del = async (t) => {
     if (!window.confirm(`Delete "${t.title}"?`)) return;
     await api.delete(`/tasks/${t._id}`);
     setTasks((list) => list.filter((x) => x._id !== t._id));
+  };
+
+  /* ---------- QUICK ACTIONS ---------- */
+  const startNewGroup = () => {
+    const name = window.prompt(
+      "New task group name (e.g. 'task-3' or 'bonus-round'):"
+    );
+    if (!name || !name.trim()) return;
+
+    const cleaned = name.trim().toLowerCase().replace(/\s+/g, "-");
+
+    setForm({
+      ...EMPTY,
+      group: cleaned,
+      isGroupIntro: true,
+      hasStartGate: true,
+      submittable: false,
+      requiresPrevious: false,
+      title: "",
+      description: "",
+      points: 0,
+      order: 0,
+    });
+    setEditingId(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const startNewChallenge = () => {
+    const groupList = allGroups
+      .map((g, i) => `${i + 1}. ${g.value}`)
+      .join("\n");
+    const pick = window.prompt(
+      `Which group should this challenge belong to?\n\n${groupList}\n\nEnter the group name (e.g. chaos-challenges):`
+    );
+    if (!pick || !pick.trim()) return;
+
+    setForm({
+      ...EMPTY,
+      group: pick.trim().toLowerCase().replace(/\s+/g, "-"),
+      isGroupIntro: false,
+      hasStartGate: false,
+      submittable: true,
+      requiresPrevious: true,
+      title: "",
+      description: "",
+      order: 0,
+    });
+    setEditingId(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   /* ---------- QR HELPERS ---------- */
@@ -204,18 +304,7 @@ export default function ManageTasks() {
 
   if (loading) return <p>Loading…</p>;
 
-  /* ---------- GROUP TASKS FOR DISPLAY ---------- */
-  const task1 = tasks.find((t) => t.group === "early-bird");
-  const chaosIntro = tasks.find(
-    (t) => t.group === "chaos-challenges" && t.isGroupIntro
-  );
-  const challenges = tasks
-    .filter((t) => t.group === "chaos-challenges" && !t.isGroupIntro)
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const ungrouped = tasks.filter(
-    (t) => !t.group || t.group === "__default__"
-  );
-
+  /* ---------- ROW RENDERER ---------- */
   const renderTaskRow = (t, index) => (
     <li key={t._id} className="mt-task-item">
       <div className="task-points">
@@ -239,13 +328,11 @@ export default function ManageTasks() {
               {String(index + 1).padStart(2, "0")}
             </span>
           )}
-          {t.title}
+          {t.title || <em className="mt-untitled">(untitled)</em>}
         </strong>
 
         <div className="mt-task-badges">
-          {t.isGroupIntro && (
-            <span className="mt-badge intro">INTRO</span>
-          )}
+          {t.isGroupIntro && <span className="mt-badge intro">INTRO</span>}
           {t.hasStartGate && (
             <span className="mt-badge gate">START GATE</span>
           )}
@@ -288,6 +375,7 @@ export default function ManageTasks() {
     </li>
   );
 
+  /* ---------- RENDER ---------- */
   return (
     <div className="manage-tasks">
       <style>{css}</style>
@@ -296,8 +384,8 @@ export default function ManageTasks() {
         <div>
           <h1>Tasks & Challenges</h1>
           <p className="mt-sub">
-            Task 1 (Early Bird) and Task 2 (Chaos Challenges) with nested
-            challenges. Sequential unlock applies within each group.
+            Group items into Tasks (with instructions), then add Challenges
+            within each task. Sequential unlock applies per group.
           </p>
         </div>
         <select
@@ -313,30 +401,107 @@ export default function ManageTasks() {
         </select>
       </div>
 
+      {/* ---------- QUICK ACTIONS ---------- */}
+      <div className="mt-quick-actions">
+        <button
+          type="button"
+          className="mt-btn primary"
+          onClick={startNewGroup}
+        >
+          📁 + New Task Group
+        </button>
+        <button
+          type="button"
+          className="mt-btn"
+          onClick={startNewChallenge}
+        >
+          🎯 + New Challenge
+        </button>
+      </div>
+
       <div className="mt-layout">
         {/* ---------- FORM ---------- */}
         <form className="mt-form" onSubmit={submit}>
-          <h2>{editingId ? "Edit item" : "New item"}</h2>
+          <h2>
+            {editingId
+              ? "Edit item"
+              : form.isGroupIntro
+              ? "New task group"
+              : "New challenge"}
+          </h2>
+
           {err && <div className="mt-error">{err}</div>}
 
-          <label>Title</label>
+          {/* HINT for group intro */}
+          {form.isGroupIntro && !editingId && (
+            <div className="mt-form-hint">
+              This creates a <strong>Task</strong> with its own instructions.
+              Fill in the title and description — teams will see them before
+              starting.
+            </div>
+          )}
+
+          <label>Title *</label>
           <input
             type="text"
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder="Challenge name"
+            placeholder={
+              form.isGroupIntro
+                ? "e.g. 🎮 NS Chaos Challenges"
+                : "e.g. Breaking News: NS Edition"
+            }
             required
           />
 
-          <label>Description</label>
+          <label>
+            {form.isGroupIntro ? "Task Instructions *" : "Challenge description *"}
+          </label>
           <textarea
-            rows={4}
+            rows={form.isGroupIntro ? 8 : 5}
             value={form.description}
             onChange={(e) =>
               setForm({ ...form, description: e.target.value })
             }
-            placeholder="Full instructions for the team..."
+            placeholder={
+              form.isGroupIntro
+                ? "Full instructions for this task — rules, how it works, what teams need to know before starting..."
+                : "Full challenge description. What the team needs to do."
+            }
           />
+
+          {/* ---------- GROUP ---------- */}
+          <label>Group (task)</label>
+          <div className="mt-group-picker">
+            <select
+              value={form.group}
+              onChange={(e) => setForm({ ...form, group: e.target.value })}
+            >
+              <option value="">(no group — legacy)</option>
+              {allGroups.map((g) => (
+                <option key={g.value} value={g.value}>
+                  {g.label} ({g.value})
+                </option>
+              ))}
+            </select>
+            <input
+              type="text"
+              placeholder="or type new group name"
+              value={
+                allGroups.some((g) => g.value === form.group)
+                  ? ""
+                  : form.group
+              }
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  group: e.target.value
+                    .toLowerCase()
+                    .replace(/\s+/g, "-"),
+                })
+              }
+            />
+          </div>
 
           <div className="mt-grid-2">
             <div>
@@ -366,18 +531,6 @@ export default function ManageTasks() {
             </div>
           </div>
 
-          <label>Group</label>
-          <select
-            value={form.group}
-            onChange={(e) => setForm({ ...form, group: e.target.value })}
-          >
-            {GROUPS.map((g) => (
-              <option key={g.value} value={g.value}>
-                {g.label}
-              </option>
-            ))}
-          </select>
-
           <div className="mt-grid-2">
             <div>
               <label>Submission type</label>
@@ -398,9 +551,7 @@ export default function ManageTasks() {
               <label>Legacy type</label>
               <select
                 value={form.type}
-                onChange={(e) =>
-                  setForm({ ...form, type: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
               >
                 {TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -427,7 +578,7 @@ export default function ManageTasks() {
               />
             </div>
             <div>
-              <label>Order</label>
+              <label>Order (0 = auto)</label>
               <input
                 type="number"
                 value={form.order}
@@ -442,9 +593,7 @@ export default function ManageTasks() {
           <input
             type="text"
             value={form.location}
-            onChange={(e) =>
-              setForm({ ...form, location: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, location: e.target.value })}
             placeholder="Main chapel"
           />
 
@@ -469,34 +618,15 @@ export default function ManageTasks() {
             <label className="mt-check">
               <input
                 type="checkbox"
-                checked={form.submittable}
-                onChange={(e) =>
-                  setForm({ ...form, submittable: e.target.checked })
-                }
-              />
-              <span>Submittable (teams can upload proof)</span>
-            </label>
-
-            <label className="mt-check">
-              <input
-                type="checkbox"
-                checked={form.requiresPrevious}
-                onChange={(e) =>
-                  setForm({ ...form, requiresPrevious: e.target.checked })
-                }
-              />
-              <span>Requires previous task in group</span>
-            </label>
-
-            <label className="mt-check">
-              <input
-                type="checkbox"
                 checked={form.isGroupIntro}
                 onChange={(e) =>
                   setForm({ ...form, isGroupIntro: e.target.checked })
                 }
               />
-              <span>Is group intro card</span>
+              <span>
+                <strong>Is Task (group intro)</strong> — this row holds the
+                instructions for the whole group
+              </span>
             </label>
 
             <label className="mt-check">
@@ -507,7 +637,37 @@ export default function ManageTasks() {
                   setForm({ ...form, hasStartGate: e.target.checked })
                 }
               />
-              <span>Has Start gate (shows Start button)</span>
+              <span>
+                <strong>Has Start gate</strong> — show a "Start" button before
+                revealing challenges
+              </span>
+            </label>
+
+            <label className="mt-check">
+              <input
+                type="checkbox"
+                checked={form.submittable}
+                onChange={(e) =>
+                  setForm({ ...form, submittable: e.target.checked })
+                }
+              />
+              <span>
+                <strong>Submittable</strong> — teams can upload proof
+              </span>
+            </label>
+
+            <label className="mt-check">
+              <input
+                type="checkbox"
+                checked={form.requiresPrevious}
+                onChange={(e) =>
+                  setForm({ ...form, requiresPrevious: e.target.checked })
+                }
+              />
+              <span>
+                <strong>Requires previous</strong> — locked until the item
+                before it in the same group is approved
+              </span>
             </label>
 
             <label className="mt-check">
@@ -518,7 +678,9 @@ export default function ManageTasks() {
                   setForm({ ...form, allowVideo: e.target.checked })
                 }
               />
-              <span>Allow video uploads</span>
+              <span>
+                <strong>Allow video</strong> — accept video uploads
+              </span>
             </label>
           </div>
 
@@ -540,57 +702,72 @@ export default function ManageTasks() {
 
         {/* ---------- LIST ---------- */}
         <div className="mt-list">
-          {/* TASK 1 */}
-          {task1 && (
-            <section className="mt-group">
-              <div className="mt-group-head">
-                <h2>
-                  <span className="mt-group-badge task1">Task 1</span>
-                  Early Bird
-                </h2>
-              </div>
-              <ul className="mt-task-list">{renderTaskRow(task1)}</ul>
-            </section>
+          {Object.keys(groupedTasks).length === 0 && (
+            <div className="mt-empty-state">
+              <h3>No tasks yet</h3>
+              <p>
+                Click <strong>📁 + New Task Group</strong> to create your first
+                task, or <strong>🎯 + New Challenge</strong> to add an item.
+              </p>
+            </div>
           )}
 
-          {/* TASK 2 */}
-          {(chaosIntro || challenges.length > 0) && (
-            <section className="mt-group">
-              <div className="mt-group-head">
-                <h2>
-                  <span className="mt-group-badge task2">Task 2</span>
-                  Chaos Challenges
-                  <span className="mt-group-count">
-                    {challenges.length} challenges
-                  </span>
-                </h2>
-              </div>
+          {Object.entries(groupedTasks).map(([groupKey, groupItems]) => {
+            const intro = groupItems.find((t) => t.isGroupIntro);
+            const challenges = groupItems.filter((t) => !t.isGroupIntro);
 
-              <ul className="mt-task-list">
-                {chaosIntro && renderTaskRow(chaosIntro)}
-                {challenges.map((t, i) => renderTaskRow(t, i))}
-              </ul>
-            </section>
-          )}
+            const groupInfo = allGroups.find((g) => g.value === groupKey);
+            const groupLabel =
+              groupInfo?.label ||
+              groupKey
+                .replace(/-/g, " ")
+                .replace(/\b\w/g, (c) => c.toUpperCase());
 
-          {/* Ungrouped */}
-          {ungrouped.length > 0 && (
-            <section className="mt-group">
-              <div className="mt-group-head">
-                <h2>
-                  <span className="mt-group-badge other">Other</span>
-                  Ungrouped items
-                </h2>
-              </div>
-              <ul className="mt-task-list">
-                {ungrouped.map((t) => renderTaskRow(t))}
-              </ul>
-            </section>
-          )}
+            return (
+              <section key={groupKey} className="mt-group">
+                <div className="mt-group-head">
+                  <h2>
+                    <span className="mt-group-badge">
+                      {groupKey === "__ungrouped__" ? "OTHER" : groupLabel}
+                    </span>
+                    {challenges.length > 0 && (
+                      <span className="mt-group-count">
+                        {challenges.length} challenge
+                        {challenges.length !== 1 && "s"}
+                      </span>
+                    )}
+                  </h2>
+                  {groupKey !== "__ungrouped__" && (
+                    <span className="mt-group-key">
+                      group: <code>{groupKey}</code>
+                    </span>
+                  )}
+                </div>
 
-          {tasks.length === 0 && (
-            <p className="mt-empty">No tasks yet for this event.</p>
-          )}
+                {intro && (
+                  <div className="mt-intro-row">
+                    <span className="mt-intro-label">Task instructions</span>
+                    <ul className="mt-task-list">{renderTaskRow(intro)}</ul>
+                  </div>
+                )}
+
+                {challenges.length > 0 && (
+                  <>
+                    {intro && (
+                      <div className="mt-challenges-label">Challenges</div>
+                    )}
+                    <ul className="mt-task-list">
+                      {challenges.map((t, i) => renderTaskRow(t, i))}
+                    </ul>
+                  </>
+                )}
+
+                {!intro && challenges.length === 0 && (
+                  <p className="mt-group-empty">No items in this group.</p>
+                )}
+              </section>
+            );
+          })}
         </div>
       </div>
 
@@ -603,6 +780,7 @@ export default function ManageTasks() {
             </button>
             <h2>{qrTask.title}</h2>
             <p className="mt-modal-code">{qrData.qrCode}</p>
+            <img src={qrData.qrCode} alt="" style={{ display: "none" }} />
             <img src={qrData.dataUrl} alt="QR code" className="mt-qr-img" />
             <p className="mt-modal-url">
               <small>{qrData.scanUrl}</small>
@@ -629,7 +807,7 @@ const css = `
 .manage-tasks{ color:#1B2A4A; }
 .mt-head{
   display:flex; align-items:flex-start; justify-content:space-between;
-  gap:16px; flex-wrap:wrap; margin-bottom:24px;
+  gap:16px; flex-wrap:wrap; margin-bottom:20px;
 }
 .mt-head h1{
   font-family:'Cormorant Garamond', serif;
@@ -642,6 +820,22 @@ const css = `
   background:#FFFDF8; font-family:inherit;
   font-size:0.9rem; color:#1B2A4A; min-width:220px;
 }
+
+/* ---------- QUICK ACTIONS ---------- */
+.mt-quick-actions{
+  display:flex; gap:10px; flex-wrap:wrap;
+  margin-bottom:24px;
+  padding:16px;
+  background:#F8F4E9;
+  border-radius:6px;
+  border:1px dashed rgba(27,42,74,0.14);
+}
+.mt-quick-actions .mt-btn{
+  padding:11px 20px;
+  font-size:0.9rem;
+  font-weight:500;
+}
+
 .mt-layout{ display:grid; grid-template-columns:400px 1fr; gap:24px; align-items:flex-start; }
 @media (max-width:1000px){ .mt-layout{ grid-template-columns:1fr; } }
 
@@ -655,7 +849,16 @@ const css = `
 }
 .mt-form h2{
   font-family:'Cormorant Garamond', serif;
-  font-size:1.4rem; margin:0 0 12px;
+  font-size:1.4rem; margin:0 0 6px;
+}
+.mt-form-hint{
+  background:#E5F0FF;
+  color:#2c5da0;
+  padding:10px 12px;
+  border-radius:4px;
+  font-size:0.82rem;
+  line-height:1.5;
+  margin-bottom:8px;
 }
 .mt-form label{
   font-size:0.82rem; font-weight:500;
@@ -684,16 +887,32 @@ const css = `
   gap:12px; min-width:0;
 }
 .mt-grid-2 > div{ min-width:0; }
+
+/* ---------- GROUP PICKER ---------- */
+.mt-group-picker{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+@media (max-width:600px){
+  .mt-group-picker{ grid-template-columns:1fr; }
+}
+
+/* ---------- CHECKBOX GRID ---------- */
 .mt-checkbox-grid{
-  display:flex; flex-direction:column; gap:6px;
+  display:flex; flex-direction:column; gap:10px;
   margin-top:14px; padding:14px;
   background:#F8F4E9; border-radius:4px;
 }
 .mt-check{
-  display:flex; align-items:center; gap:8px;
+  display:flex; align-items:flex-start; gap:10px;
   font-size:0.85rem; color:#3a4560;
   cursor:pointer;
+  line-height:1.5;
 }
+.mt-check input{ margin-top:3px; flex-shrink:0; }
+.mt-check strong{ color:#1B2A4A; }
+
 .mt-form-actions{ display:flex; gap:8px; margin-top:16px; }
 
 /* ---------- BUTTONS ---------- */
@@ -721,6 +940,28 @@ const css = `
   padding:10px 12px; border-radius:3px; font-size:0.85rem;
 }
 
+/* ---------- EMPTY STATE ---------- */
+.mt-empty-state{
+  background:#FFFDF8;
+  border:1px dashed rgba(27,42,74,0.22);
+  border-radius:6px;
+  padding:50px 30px;
+  text-align:center;
+  color:#7b8399;
+}
+.mt-empty-state h3{
+  font-family:'Cormorant Garamond', serif;
+  font-size:1.4rem;
+  color:#1B2A4A;
+  margin:0 0 10px;
+}
+.mt-empty-state p{
+  font-size:0.9rem;
+  line-height:1.6;
+  margin:0;
+}
+.mt-empty-state strong{ color:#B8912F; }
+
 /* ---------- LIST ---------- */
 .mt-list{
   display:flex; flex-direction:column; gap:24px;
@@ -736,6 +977,8 @@ const css = `
   margin-bottom:16px;
   padding-bottom:12px;
   border-bottom:1px solid rgba(27,42,74,0.08);
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; flex-wrap:wrap;
 }
 .mt-group-head h2{
   font-family:'Cormorant Garamond', serif;
@@ -748,16 +991,57 @@ const css = `
   font-size:0.7rem; font-weight:700;
   letter-spacing:0.08em; text-transform:uppercase;
   padding:4px 10px; border-radius:12px;
-  color:#fff;
+  background:#6E2C2C; color:#fff;
 }
-.mt-group-badge.task1{ background:#B8912F; }
-.mt-group-badge.task2{ background:#6E2C2C; }
-.mt-group-badge.other{ background:#77886A; }
 .mt-group-count{
   font-size:0.75rem; color:#7b8399;
   font-family:'Inter', sans-serif;
   font-weight:400;
-  margin-left:auto;
+}
+.mt-group-key{
+  font-size:0.72rem;
+  color:#7b8399;
+}
+.mt-group-key code{
+  background:#F8F4E9;
+  padding:2px 6px;
+  border-radius:3px;
+  color:#6E2C2C;
+}
+.mt-group-empty{
+  color:#7b8399;
+  font-style:italic;
+  font-size:0.85rem;
+  text-align:center;
+  padding:16px;
+  margin:0;
+}
+
+/* Intro row highlight */
+.mt-intro-row{
+  background:rgba(184,145,47,0.06);
+  border-radius:6px;
+  padding:12px 16px;
+  margin-bottom:16px;
+  border-left:3px solid #B8912F;
+}
+.mt-intro-label{
+  display:block;
+  font-size:0.7rem;
+  font-weight:700;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:#B8912F;
+  margin-bottom:10px;
+}
+
+.mt-challenges-label{
+  font-size:0.7rem;
+  font-weight:700;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:#7b8399;
+  margin:12px 0 8px;
 }
 
 .mt-task-list{ list-style:none; margin:0; padding:0; }
@@ -786,6 +1070,7 @@ const css = `
   font-size:0.95rem; display:flex; align-items:center; gap:8px;
   flex-wrap:wrap;
 }
+.mt-untitled{ color:#7b8399; font-style:italic; }
 .mt-task-order{
   font-family:'Cormorant Garamond',serif;
   font-weight:700; color:#6E2C2C;
@@ -814,10 +1099,6 @@ const css = `
 }
 .mt-task-actions{
   display:flex; gap:6px; flex-wrap:wrap;
-}
-.mt-empty{
-  color:#7b8399; font-style:italic;
-  text-align:center; padding:40px;
 }
 
 /* ---------- QR MODAL ---------- */
