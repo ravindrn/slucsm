@@ -465,16 +465,16 @@ async function run() {
   const teamCount = await Team.countDocuments({ eventId: event._id });
   if (teamCount > 0) {
     await Team.updateMany(
-      { eventId: event._id },
-      {
-        $set: {
-          earlyBirdRead: false,
-          earlyBirdReadAt: null,
-          chaosStartedAt: null,
-          unlockedOverride: [],
-        },
-      }
-    );
+  { eventId: event._id },
+  {
+    $set: {
+      chaosUnlocked: false,
+      chaosUnlockedAt: null,
+      chaosStartedAt: null,
+      unlockedOverride: [],
+    },
+  }
+);
     console.log(`\n🔄 Reset progress flags for ${teamCount} teams`);
   }
 

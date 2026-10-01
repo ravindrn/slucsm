@@ -36,12 +36,12 @@ const TeamSchema = new mongoose.Schema(
     /* ---------- SEQUENTIAL UNLOCK OVERRIDES ---------- */
     unlockedOverride: [{ type: mongoose.Schema.Types.ObjectId, ref: "Task" }],
 
-    /* ---------- TASK PROGRESS TRACKING ---------- */
-    /* When team confirmed they read Task 1 (Early Bird) */
-    earlyBirdRead: { type: Boolean, default: false },
-    earlyBirdReadAt: { type: Date, default: null },
+    /* ---------- TASK 2 ACCESS CONTROL ---------- */
+    /* Admin unlocks this when it's time for Task 2 to become visible */
+    chaosUnlocked: { type: Boolean, default: false },
+    chaosUnlockedAt: { type: Date, default: null },
 
-    /* When team clicked "Start" on Task 2 (Chaos Challenges) */
+    /* When the team clicked Start on Task 2 */
     chaosStartedAt: { type: Date, default: null },
   },
   { timestamps: true }

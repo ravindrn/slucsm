@@ -94,14 +94,12 @@ router.get("/me", teamAuth, async (req, res) => {
     const team = await Team.findById(req.team.teamId).select("-passwordHash");
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    /* All active tasks */
     const allTasks = await Task.find({
       eventId: team.eventId,
       active: true,
       $or: [{ assignedTo: { $size: 0 } }, { assignedTo: team._id }],
     }).sort("order");
 
-    /* All submissions for this team */
     const submissions = await Submission.find({
       teamId: team._id,
     }).populate(
@@ -109,47 +107,51 @@ router.get("/me", teamAuth, async (req, res) => {
       "title points pointsPerItem submissionType maxFiles allowVideo order group"
     );
 
-    /* Compute unlock state */
     const { unlocked } = computeTaskUnlocks(
       allTasks,
       submissions,
       team.unlockedOverride || []
     );
 
-    /* Which tasks have an approved submission? */
     const approvedTaskIds = new Set(
       submissions
         .filter((s) => s.status === "approved")
         .map((s) => String(s.taskId?._id || s.taskId))
     );
 
-    /* Build response — each task gets a `locked` flag */
-    const tasks = allTasks.map((t) => {
-      const taskId = String(t._id);
+    /* Filter tasks based on team's access */
+    const tasks = allTasks
+      .filter((t) => {
+        /* Hide ALL chaos-challenges tasks if not unlocked yet */
+        if (t.group === "chaos-challenges" && !team.chaosUnlocked) {
+          return false;
+        }
+        return true;
+      })
+      .map((t) => {
+        const taskId = String(t._id);
 
-      /* Visible if: unlocked OR approved OR group intro */
-      const visible =
-        t.isGroupIntro ||
-        unlocked.has(taskId) ||
-        approvedTaskIds.has(taskId);
+        const visible =
+          t.isGroupIntro ||
+          unlocked.has(taskId) ||
+          approvedTaskIds.has(taskId);
 
-      if (!visible) {
-        return {
-          _id: t._id,
-          title: t.title,
-          order: t.order,
-          group: t.group || "",
-          locked: true,
-        };
-      }
+        if (!visible) {
+          return {
+            _id: t._id,
+            title: t.title,
+            order: t.order,
+            group: t.group || "",
+            locked: true,
+          };
+        }
 
-      return { ...t.toObject(), locked: false };
-    });
+        return { ...t.toObject(), locked: false };
+      });
 
-    /* Team-level progress */
     const progress = {
-      earlyBirdRead: !!team.earlyBirdRead,
-      earlyBirdReadAt: team.earlyBirdReadAt,
+      chaosUnlocked: !!team.chaosUnlocked,
+      chaosUnlockedAt: team.chaosUnlockedAt,
       chaosStartedAt: team.chaosStartedAt,
     };
 
@@ -356,6 +358,98 @@ router.put("/me/start-chaos", teamAuth, async (req, res) => {
     }
 
     res.json({ ok: true, chaosStartedAt: team.chaosStartedAt });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
+/* ============================================================
+   ADMIN: unlock Task 2 (chaos-challenges) for ALL teams in an event
+   ============================================================ */
+router.put("/unlock-chaos/:eventId", protect, async (req, res) => {
+  try {
+    const result = await Team.updateMany(
+      { eventId: req.params.eventId },
+      {
+        $set: {
+          chaosUnlocked: true,
+          chaosUnlockedAt: new Date(),
+        },
+      }
+    );
+
+    res.json({
+      ok: true,
+      modified: result.modifiedCount,
+      message: `Unlocked Task 2 for ${result.modifiedCount} teams`,
+    });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
+/* ============================================================
+   ADMIN: lock Task 2 back for ALL teams in an event
+   ============================================================ */
+router.put("/lock-chaos/:eventId", protect, async (req, res) => {
+  try {
+    const result = await Team.updateMany(
+      { eventId: req.params.eventId },
+      {
+        $set: {
+          chaosUnlocked: false,
+          chaosUnlockedAt: null,
+        },
+      }
+    );
+
+    res.json({
+      ok: true,
+      modified: result.modifiedCount,
+      message: `Locked Task 2 for ${result.modifiedCount} teams`,
+    });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
+/* ============================================================
+   ADMIN: unlock Task 2 for a specific team
+   ============================================================ */
+router.put("/:id/unlock-chaos", protect, async (req, res) => {
+  try {
+    const team = await Team.findByIdAndUpdate(
+      req.params.id,
+      {
+        chaosUnlocked: true,
+        chaosUnlockedAt: new Date(),
+      },
+      { new: true }
+    ).select("-passwordHash");
+
+    if (!team) return res.status(404).json({ message: "Team not found" });
+    res.json(team);
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
+/* ============================================================
+   ADMIN: lock Task 2 for a specific team
+   ============================================================ */
+router.put("/:id/lock-chaos", protect, async (req, res) => {
+  try {
+    const team = await Team.findByIdAndUpdate(
+      req.params.id,
+      {
+        chaosUnlocked: false,
+        chaosUnlockedAt: null,
+      },
+      { new: true }
+    ).select("-passwordHash");
+
+    if (!team) return res.status(404).json({ message: "Team not found" });
+    res.json(team);
   } catch (e) {
     res.status(400).json({ message: e.message });
   }

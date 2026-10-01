@@ -15,15 +15,13 @@ export default function TeamDashboard() {
   const [activeTask, setActiveTask] = useState(null);
   const [scanOpen, setScanOpen] = useState(false);
 
-  /* Team-level progress flags from the backend */
   const [progress, setProgress] = useState({
-    earlyBirdRead: false,
+    chaosUnlocked: false,
     chaosStartedAt: null,
   });
 
   const [marking, setMarking] = useState(false);
 
-  /* Load event + leaderboard + team progress */
   const loadAux = async () => {
     try {
       const { data: ev } = await api.get(`/events/${slug}`);
@@ -33,8 +31,6 @@ export default function TeamDashboard() {
       );
       setLeaderboard(lb);
 
-      /* Progress comes from /teams/me — TeamContext already fetches tasks + submissions
-         but progress is a top-level field, so we pull it from a fresh call */
       const { data: me } = await api.get("/teams/me");
       if (me.progress) setProgress(me.progress);
     } catch (e) {
@@ -47,7 +43,6 @@ export default function TeamDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
-  /* Map submissions by taskId */
   const submissionByTask = useMemo(() => {
     const m = {};
     for (const s of submissions) {
@@ -60,7 +55,6 @@ export default function TeamDashboard() {
     return m;
   }, [submissions]);
 
-  /* Count distinct approved */
   const completedCount = useMemo(() => {
     const approved = new Set();
     for (const s of submissions) {
@@ -69,7 +63,6 @@ export default function TeamDashboard() {
     return approved.size;
   }, [submissions]);
 
-  /* ---- Group the tasks ---- */
   const task1 = useMemo(
     () => tasks.find((t) => t.group === "early-bird"),
     [tasks]
@@ -86,7 +79,6 @@ export default function TeamDashboard() {
     [tasks]
   );
 
-  /* ---- Actions ---- */
   const handleLogout = async () => {
     await logout();
     nav(`/events/live/${slug}/portal`);
@@ -96,20 +88,6 @@ export default function TeamDashboard() {
     setActiveTask(null);
     await refresh();
     await loadAux();
-  };
-
-  const markEarlyBirdRead = async () => {
-    if (marking) return;
-    setMarking(true);
-    try {
-      await api.put("/teams/me/mark-early-bird-read");
-      await refresh();
-      await loadAux();
-    } catch (e) {
-      alert(e.response?.data?.message || "Failed to mark as read");
-    } finally {
-      setMarking(false);
-    }
   };
 
   const startChaos = async () => {
@@ -126,22 +104,14 @@ export default function TeamDashboard() {
     }
   };
 
-  /* ---- Countdown to next challenge ---- */
-  const nextChallenge = challenges.find(
-    (t) => t.locked === false && !submissionByTask[t._id]
-  );
   const approvedChallenges = challenges.filter(
     (t) => submissionByTask[t._id]?.status === "approved"
   ).length;
-
-  /* ---- Early Bird can be read? Task 2 unlocks after ---- */
-  const canUnlockTask2 = progress.earlyBirdRead;
 
   return (
     <div className="team-dash">
       <style>{css}</style>
 
-      {/* ---------- HEADER ---------- */}
       <header className="td-header">
         <div className="td-header-inner">
           <Link to={`/events/live/${slug}`} className="td-brand">
@@ -167,7 +137,6 @@ export default function TeamDashboard() {
         </div>
       </header>
 
-      {/* ---------- MAIN ---------- */}
       <main className="td-main">
         <div className="td-hero">
           <div className="td-hero-text">
@@ -175,7 +144,7 @@ export default function TeamDashboard() {
             <h1>Hello, {team?.name}</h1>
             <p className="td-sub">
               {completedCount} completed · {approvedChallenges} of{" "}
-              {challenges.length} challenges approved ·{" "}
+              {challenges.length || 18} challenges approved ·{" "}
               {team?.totalScore || 0} points earned.
             </p>
           </div>
@@ -194,7 +163,7 @@ export default function TeamDashboard() {
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="M3 7V5a2 2 0 2 1 2-2h2" />
+              <path d="M3 7V5a2 2 0 0 1 2-2h2" />
               <path d="M17 3h2a2 2 0 0 1 2 2v2" />
               <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
               <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
@@ -205,87 +174,49 @@ export default function TeamDashboard() {
         </div>
 
         <div className="td-grid">
-          {/* ---------- TASK LIST ---------- */}
           <section className="td-tasks">
-            {/* ================================================
-                TASK 1 — EARLY BIRD
-               ================================================ */}
+            {/* TASK 1 */}
             {task1 && (
-              <div
-                className={`td-group td-group-task1${
-                  progress.earlyBirdRead ? " completed" : ""
-                }`}
-              >
+              <div className="td-group td-group-task1 completed">
                 <div className="td-group-head">
                   <span className="td-group-label">Task 1</span>
-                  <span
-                    className={`td-group-status ${
-                      progress.earlyBirdRead ? "done" : "pending"
-                    }`}
-                  >
-                    {progress.earlyBirdRead ? "✓ Read" : "Pending"}
-                  </span>
+                  <span className="td-group-status done">Info</span>
                 </div>
 
                 <h2 className="td-group-title">{task1.title}</h2>
                 <div className="td-task-desc">{task1.description}</div>
 
-                {!progress.earlyBirdRead ? (
-                  <button
-                    className="td-primary-btn"
-                    onClick={markEarlyBirdRead}
-                    disabled={marking}
-                  >
-                    {marking ? "Marking…" : "✓ I've read this"}
-                  </button>
-                ) : (
-                  <p className="td-group-done-note">
-                    ✓ You've completed Task 1. Task 2 is now unlocked below.
-                  </p>
-                )}
+                <div className="td-info-note">
+                  ℹ️ This task is informational. Points will be awarded by the
+                  organisers based on attendance.
+                </div>
               </div>
             )}
 
-            {/* ================================================
-                TASK 2 — CHAOS CHALLENGES
-               ================================================ */}
-            {chaosIntro && (
+            {/* TASK 2 — only if unlocked by admin */}
+            {chaosIntro && progress.chaosUnlocked && (
               <div
                 className={`td-group td-group-task2${
-                  !canUnlockTask2 ? " locked" : ""
-                }${progress.chaosStartedAt ? " started" : ""}`}
+                  progress.chaosStartedAt ? " started" : ""
+                }`}
               >
                 <div className="td-group-head">
                   <span className="td-group-label">Task 2</span>
                   <span
                     className={`td-group-status ${
-                      canUnlockTask2
-                        ? progress.chaosStartedAt
-                          ? "started"
-                          : "ready"
-                        : "locked"
+                      progress.chaosStartedAt ? "started" : "ready"
                     }`}
                   >
-                    {!canUnlockTask2 && "🔒 Locked"}
-                    {canUnlockTask2 &&
-                      !progress.chaosStartedAt &&
-                      "Ready to start"}
-                    {canUnlockTask2 &&
-                      progress.chaosStartedAt &&
-                      `In progress (${approvedChallenges}/${challenges.length})`}
+                    {progress.chaosStartedAt
+                      ? `In progress (${approvedChallenges}/${challenges.length})`
+                      : "Ready to start"}
                   </span>
                 </div>
 
                 <h2 className="td-group-title">{chaosIntro.title}</h2>
                 <div className="td-task-desc">{chaosIntro.description}</div>
 
-                {!canUnlockTask2 && (
-                  <div className="td-locked-banner">
-                    🔒 Complete Task 1 first to unlock this
-                  </div>
-                )}
-
-                {canUnlockTask2 && !progress.chaosStartedAt && (
+                {!progress.chaosStartedAt && (
                   <button
                     className="td-primary-btn large"
                     onClick={startChaos}
@@ -295,13 +226,12 @@ export default function TeamDashboard() {
                   </button>
                 )}
 
-                {canUnlockTask2 && progress.chaosStartedAt && (
+                {progress.chaosStartedAt && (
                   <>
                     <p className="td-group-done-note">
                       ✓ Started — completing challenges below in order
                     </p>
 
-                    {/* ---------- CHALLENGES ---------- */}
                     <ul className="td-challenge-list">
                       {challenges.map((t, idx) => {
                         const sub = submissionByTask[t._id];
@@ -398,7 +328,6 @@ export default function TeamDashboard() {
                                 </p>
                               )}
 
-                              {/* Files */}
                               {sub?.files && sub.files.length > 0 && (
                                 <div className="td-task-files">
                                   {sub.files.map((f, i) => (
@@ -518,9 +447,27 @@ export default function TeamDashboard() {
                 )}
               </div>
             )}
+
+            {/* Nothing to show yet */}
+            {!task1 && !progress.chaosUnlocked && (
+              <div className="td-empty-state">
+                <p>No tasks available yet. Check back soon.</p>
+              </div>
+            )}
+
+            {task1 && !progress.chaosUnlocked && (
+              <div className="td-coming-soon">
+                <p>
+                  🔒 <strong>Task 2 will be unlocked on Day 2</strong>
+                </p>
+                <p className="td-coming-soon-sub">
+                  Check back later — organisers will announce when it's live.
+                </p>
+              </div>
+            )}
           </section>
 
-          {/* ---------- LEADERBOARD ---------- */}
+          {/* LEADERBOARD */}
           <aside className="td-lb">
             <h2>🏆 Leaderboard</h2>
             {leaderboard.length === 0 ? (
@@ -599,7 +546,6 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   font-family:'Cormorant Garamond', serif;
 }
 
-/* ---------- HEADER ---------- */
 .td-header{
   position:sticky; top:0; z-index:20;
   background:rgba(248,244,233,0.94);
@@ -631,45 +577,28 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   border-radius:20px; padding:6px 14px;
   font-size:0.9rem;
 }
-.td-team-dot{
-  width:10px; height:10px; border-radius:50%;
-}
-.td-team-score{
-  color:var(--gold); font-weight:600;
-  font-size:0.85rem;
-}
-.td-header-actions{
-  display:flex; align-items:center; gap:14px;
-}
+.td-team-dot{ width:10px; height:10px; border-radius:50%; }
+.td-team-score{ color:var(--gold); font-weight:600; font-size:0.85rem; }
+.td-header-actions{ display:flex; align-items:center; gap:14px; }
 .td-link{
   text-decoration:none; font-size:0.88rem;
   color:#3a4560; opacity:0.85;
 }
 .td-link:hover{ opacity:1; color:var(--maroon); }
 .td-logout{
-  padding:7px 14px;
-  background:transparent;
-  border:1px solid var(--line);
-  border-radius:3px; font-family:inherit;
-  font-size:0.85rem; color:var(--ink);
-  cursor:pointer; transition:.15s;
+  padding:7px 14px; background:transparent;
+  border:1px solid var(--line); border-radius:3px;
+  font-family:inherit; font-size:0.85rem;
+  color:var(--ink); cursor:pointer; transition:.15s;
 }
 .td-logout:hover{ background:var(--maroon); color:var(--ivory); border-color:var(--maroon); }
 
-/* ---------- MAIN ---------- */
-.td-main{
-  max-width:1200px; margin:0 auto;
-  padding:40px 6vw 80px;
-}
+.td-main{ max-width:1200px; margin:0 auto; padding:40px 6vw 80px; }
 
-/* ---------- HERO ---------- */
 .td-hero{
   margin-bottom:36px;
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:24px;
-  flex-wrap:wrap;
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap:24px; flex-wrap:wrap;
 }
 .td-hero-text{ flex:1 1 400px; min-width:0; }
 .td-eyebrow{
@@ -679,80 +608,48 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 }
 .td-hero h1{
   font-size:clamp(1.9rem,4vw,2.6rem);
-  font-weight:600; margin:0 0 8px;
-  line-height:1.15;
+  font-weight:600; margin:0 0 8px; line-height:1.15;
 }
 .td-sub{ color:#5a6380; font-size:0.95rem; margin:0; max-width:520px; }
 
 .td-scan-btn{
-  display:inline-flex;
-  align-items:center;
-  gap:10px;
-  padding:13px 24px;
-  background:transparent;
-  color:var(--ink);
-  border:1.5px solid var(--ink);
-  border-radius:2px;
-  font-family:inherit;
-  font-size:0.92rem;
-  font-weight:500;
-  cursor:pointer;
-  transition:all .25s ease;
-  white-space:nowrap;
-  align-self:flex-start;
-  margin-top:6px;
+  display:inline-flex; align-items:center; gap:10px;
+  padding:13px 24px; background:transparent; color:var(--ink);
+  border:1.5px solid var(--ink); border-radius:2px;
+  font-family:inherit; font-size:0.92rem; font-weight:500;
+  cursor:pointer; transition:all .25s ease;
+  white-space:nowrap; align-self:flex-start; margin-top:6px;
 }
 .td-scan-btn:hover{
-  background:var(--ink);
-  color:var(--ivory);
+  background:var(--ink); color:var(--ivory);
   transform:translateY(-1px);
   box-shadow:0 8px 24px rgba(27,42,74,0.18);
 }
-.td-scan-icon{
-  flex-shrink:0;
-  transition:transform .25s ease;
-}
-.td-scan-btn:hover .td-scan-icon{
-  transform:rotate(-4deg) scale(1.05);
-}
+.td-scan-icon{ flex-shrink:0; transition:transform .25s ease; }
+.td-scan-btn:hover .td-scan-icon{ transform:rotate(-4deg) scale(1.05); }
 
 @media (max-width:640px){
   .td-hero{ flex-direction:column; align-items:stretch; }
   .td-scan-btn{ width:100%; justify-content:center; align-self:stretch; }
 }
 
-/* ---------- GRID ---------- */
 .td-grid{
   display:grid; grid-template-columns:1fr 320px; gap:24px;
   align-items:start;
 }
-@media (max-width:900px){
-  .td-grid{ grid-template-columns:1fr; }
-}
+@media (max-width:900px){ .td-grid{ grid-template-columns:1fr; } }
 
-/* ---------- TASK GROUPS ---------- */
 .td-tasks{ display:flex; flex-direction:column; gap:24px; }
 
 .td-group{
-  background:var(--paper);
-  border:1px solid var(--line);
-  border-radius:8px;
-  padding:26px;
+  background:var(--paper); border:1px solid var(--line);
+  border-radius:8px; padding:26px;
 }
 .td-group-task1{
   border-left:5px solid var(--gold);
+  background:linear-gradient(90deg, rgba(184,145,47,0.04), transparent 40%);
 }
-.td-group-task1.completed{
-  border-left-color:#2e7d32;
-  background:linear-gradient(90deg, rgba(46,125,50,0.04), transparent 40%);
-}
-.td-group-task2{
-  border-left:5px solid var(--maroon);
-}
-.td-group-task2.locked{
-  opacity:0.7;
-  border-left-color:rgba(27,42,74,0.2);
-}
+.td-group-task2{ border-left:5px solid var(--maroon); }
 .td-group-task2.started{
   border-left-color:#6b3fa0;
   background:linear-gradient(90deg, rgba(107,63,160,0.04), transparent 40%);
@@ -760,8 +657,7 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 
 .td-group-head{
   display:flex; align-items:center; justify-content:space-between;
-  gap:10px; margin-bottom:14px;
-  flex-wrap:wrap;
+  gap:10px; margin-bottom:14px; flex-wrap:wrap;
 }
 .td-group-label{
   font-size:0.75rem; font-weight:700;
@@ -777,34 +673,25 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 .td-group-status.done{ background:#E3F3E5; color:#2e7d32; }
 .td-group-status.ready{ background:#F0E5FF; color:#6b3fa0; }
 .td-group-status.started{ background:#E5F0FF; color:#2c5da0; }
-.td-group-status.locked{ background:#F8F4E9; color:#7b8399; }
 
 .td-group-title{
   font-size:1.5rem; font-weight:600;
-  margin:0 0 12px;
-  line-height:1.2;
+  margin:0 0 12px; line-height:1.2;
 }
 .td-group .td-task-desc{
-  font-size:0.94rem;
-  color:#3a4560;
-  line-height:1.65;
-  white-space:pre-line;
+  font-size:0.94rem; color:#3a4560;
+  line-height:1.65; white-space:pre-line;
   margin:0 0 20px;
-  max-width:100%;
-  max-height:none;
-  overflow:visible;
-  padding-right:0;
+  max-width:100%; max-height:none;
+  overflow:visible; padding-right:0;
 }
 
 .td-primary-btn{
-  display:inline-block;
-  padding:12px 28px;
+  display:inline-block; padding:12px 28px;
   background:var(--ink); color:var(--ivory);
   border:none; border-radius:4px;
-  font-family:inherit; font-size:0.95rem;
-  font-weight:600;
-  cursor:pointer;
-  transition:.2s;
+  font-family:inherit; font-size:0.95rem; font-weight:600;
+  cursor:pointer; transition:.2s;
 }
 .td-primary-btn:hover:not(:disabled){
   background:var(--maroon);
@@ -814,40 +701,59 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 .td-primary-btn:disabled{ opacity:0.6; cursor:wait; }
 .td-primary-btn.large{ padding:14px 36px; font-size:1.05rem; }
 
-.td-locked-banner{
-  background:#F8F4E9;
-  border:1px dashed rgba(27,42,74,0.2);
-  padding:14px 18px;
+.td-info-note{
+  background:#E5F0FF;
+  color:#2c5da0;
+  padding:12px 16px;
   border-radius:4px;
-  font-size:0.9rem;
-  color:#7b8399;
-  text-align:center;
+  font-size:0.88rem;
+  line-height:1.5;
+  border-left:3px solid #2c5da0;
+  margin-top:8px;
 }
 
 .td-group-done-note{
-  font-size:0.88rem;
-  color:#2e7d32;
-  font-weight:500;
-  margin:0 0 16px;
-  padding:10px 14px;
-  background:rgba(46,125,50,0.08);
-  border-radius:4px;
+  font-size:0.88rem; color:#2e7d32; font-weight:500;
+  margin:0 0 16px; padding:10px 14px;
+  background:rgba(46,125,50,0.08); border-radius:4px;
 }
 
-/* ---------- CHALLENGES ---------- */
+.td-coming-soon{
+  background:#F8F4E9;
+  border:1px dashed rgba(184,145,47,0.4);
+  padding:26px;
+  border-radius:6px;
+  text-align:center;
+}
+.td-coming-soon p{
+  margin:0 0 6px;
+  color:#1B2A4A;
+  font-size:1rem;
+}
+.td-coming-soon-sub{
+  font-size:0.85rem !important;
+  color:#7b8399 !important;
+  font-style:italic;
+}
+
+.td-empty-state{
+  background:#FFFDF8;
+  border:1px dashed rgba(27,42,74,0.2);
+  padding:40px;
+  border-radius:6px;
+  text-align:center;
+  color:#7b8399;
+}
+
 .td-challenge-list{
-  list-style:none;
-  margin:0; padding:0;
-  display:flex; flex-direction:column;
-  gap:14px;
-  margin-top:12px;
+  list-style:none; margin:12px 0 0; padding:0;
+  display:flex; flex-direction:column; gap:14px;
 }
 
 .td-challenge{
   display:grid;
   grid-template-columns:56px 1fr auto;
-  gap:16px;
-  padding:20px;
+  gap:16px; padding:20px;
   background:#fff;
   border:1px solid var(--line);
   border-radius:6px;
@@ -855,11 +761,8 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 }
 .td-challenge-num{
   font-family:'Cormorant Garamond', serif;
-  font-size:1.8rem;
-  font-weight:600;
-  color:var(--gold);
-  line-height:1;
-  padding-top:2px;
+  font-size:1.8rem; font-weight:600;
+  color:var(--gold); line-height:1; padding-top:2px;
 }
 .td-challenge-body{ min-width:0; }
 .td-challenge-side{
@@ -868,37 +771,23 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   min-width:90px;
 }
 
-/* Locked challenge */
 .td-challenge.locked{
-  opacity:0.55;
-  background:#F8F4E9;
-  border-style:dashed;
-  align-items:center;
+  opacity:0.55; background:#F8F4E9;
+  border-style:dashed; align-items:center;
 }
 .td-challenge-locked-body{
-  display:flex; flex-direction:column;
-  gap:4px;
+  display:flex; flex-direction:column; gap:4px;
 }
 .td-challenge-locked-body strong{
-  font-size:1rem;
-  color:#3a4560;
+  font-size:1rem; color:#3a4560;
 }
 .td-challenge-locked-hint{
-  font-size:0.82rem;
-  color:#7b8399;
-  font-style:italic;
+  font-size:0.82rem; color:#7b8399; font-style:italic;
 }
 
-/* Status states */
-.td-challenge-approved{
-  border-left:4px solid #2e7d32;
-}
-.td-challenge-pending{
-  border-left:4px solid var(--gold);
-}
-.td-challenge-rejected{
-  border-left:4px solid #b23b3b;
-}
+.td-challenge-approved{ border-left:4px solid #2e7d32; }
+.td-challenge-pending{ border-left:4px solid var(--gold); }
+.td-challenge-rejected{ border-left:4px solid #b23b3b; }
 
 .td-challenge .td-task-head{
   display:flex; align-items:center; gap:10px;
@@ -925,22 +814,16 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 .td-challenge .td-task-type.multi{ background:#E5F0FF; color:#2c5da0; }
 .td-challenge .td-task-type.video{ background:#FFE5E5; color:#a02c2c; }
 
-.td-challenge h3{
-  font-size:1.15rem; font-weight:600;
-  margin:0 0 8px;
-}
+.td-challenge h3{ font-size:1.15rem; font-weight:600; margin:0 0 8px; }
 .td-challenge .td-task-desc{
   font-size:0.9rem; color:#3a4560;
-  margin:0 0 8px;
-  white-space:pre-line;
+  margin:0 0 8px; white-space:pre-line;
   line-height:1.55;
-  max-height:180px;
-  overflow-y:auto;
+  max-height:180px; overflow-y:auto;
   padding-right:6px;
 }
 .td-challenge .td-task-loc{
-  font-size:0.85rem; color:#5a6380;
-  margin:0 0 10px;
+  font-size:0.85rem; color:#5a6380; margin:0 0 10px;
 }
 .td-challenge .td-task-note{
   background:#F8F4E9; padding:8px 12px;
@@ -948,9 +831,8 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   color:#3a4560; margin:10px 0 0;
 }
 .td-challenge .td-progress-info{
-  font-size:0.82rem;
-  color:var(--gold); font-weight:600;
-  margin:10px 0 0;
+  font-size:0.82rem; color:var(--gold);
+  font-weight:600; margin:10px 0 0;
 }
 .td-challenge .td-task-proof img{
   max-width:180px; max-height:180px;
@@ -958,19 +840,15 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   margin-top:10px;
 }
 
-/* Files */
 .td-challenge .td-task-files{
   display:flex; flex-wrap:wrap; gap:8px;
   margin-top:10px;
 }
 .td-challenge .td-task-file{
-  display:block;
-  width:70px; height:70px;
-  border-radius:4px;
-  overflow:hidden;
+  display:block; width:70px; height:70px;
+  border-radius:4px; overflow:hidden;
   border:1px solid var(--line);
-  position:relative;
-  background:#000;
+  position:relative; background:#000;
 }
 .td-challenge .td-task-file img{
   width:100%; height:100%; object-fit:cover;
@@ -989,12 +867,10 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 
-/* Task side */
 .td-challenge .td-task-pts{ text-align:right; line-height:1; }
 .td-challenge .td-task-pts-num{
   font-family:'Cormorant Garamond', serif;
-  font-size:1.6rem; font-weight:600;
-  color:var(--gold);
+  font-size:1.6rem; font-weight:600; color:var(--gold);
 }
 .td-challenge .td-task-pts-lbl{
   display:block; font-size:0.65rem;
@@ -1002,8 +878,7 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   letter-spacing:0.05em; margin-top:2px;
 }
 .td-challenge .td-task-btn{
-  padding:9px 18px;
-  background:var(--ink); color:var(--ivory);
+  padding:9px 18px; background:var(--ink); color:var(--ivory);
   border:none; border-radius:3px;
   font-family:inherit; font-size:0.88rem;
   cursor:pointer; transition:.15s;
@@ -1012,8 +887,7 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 .td-challenge .td-task-btn:hover:not(:disabled){ background:var(--maroon); }
 .td-challenge .td-task-btn.ghost{
   background:transparent; color:#7b8399;
-  border:1px solid var(--line);
-  cursor:not-allowed;
+  border:1px solid var(--line); cursor:not-allowed;
 }
 .td-challenge .td-task-approved{
   color:#2e7d32; font-weight:600;
@@ -1021,15 +895,13 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   font-size:1.2rem;
 }
 .td-challenge .td-task-info-badge{
-  display:inline-block;
-  padding:9px 16px;
+  display:inline-block; padding:9px 16px;
   background:#E5F0FF; color:#2c5da0;
   border-radius:3px;
   font-size:0.82rem; font-weight:600;
   white-space:nowrap;
 }
 
-/* ---------- MOBILE ---------- */
 @media (max-width:640px){
   .td-group{ padding:20px; }
   .td-challenge{
@@ -1037,8 +909,7 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
     grid-template-areas:
       "num body"
       "side side";
-    gap:12px;
-    padding:16px;
+    gap:12px; padding:16px;
   }
   .td-challenge-num{ grid-area:num; font-size:1.4rem; }
   .td-challenge-body{ grid-area:body; }
@@ -1047,27 +918,18 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
     flex-direction:row;
     justify-content:space-between;
     align-items:center;
-    width:100%;
-    padding-top:12px;
+    width:100%; padding-top:12px;
     border-top:1px solid rgba(27,42,74,0.08);
   }
-  .td-primary-btn.large{
-    width:100%;
-    padding:14px 20px;
-  }
+  .td-primary-btn.large{ width:100%; padding:14px 20px; }
 }
 
-/* ---------- LEADERBOARD ---------- */
 .td-lb{
   background:var(--ink); color:var(--ivory);
   border-radius:6px; padding:22px;
-  height:fit-content;
-  position:sticky; top:90px;
+  height:fit-content; position:sticky; top:90px;
 }
-.td-lb h2{
-  font-size:1.4rem; font-weight:600;
-  margin:0 0 16px;
-}
+.td-lb h2{ font-size:1.4rem; font-weight:600; margin:0 0 16px; }
 .td-lb-list{
   list-style:none; padding:0; margin:0;
   display:flex; flex-direction:column; gap:4px;
@@ -1082,8 +944,7 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 .td-lb-item.me{
   background:rgba(184,145,47,0.12);
   margin:0 -12px; padding:10px 12px;
-  border-radius:4px;
-  border-bottom-color:transparent;
+  border-radius:4px; border-bottom-color:transparent;
 }
 .td-lb-rank{
   font-family:'Cormorant Garamond', serif;
@@ -1097,8 +958,7 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   color:var(--gold);
 }
 .td-refresh{
-  width:100%; margin-top:16px;
-  padding:9px;
+  width:100%; margin-top:16px; padding:9px;
   background:rgba(248,244,233,0.1);
   border:1px solid rgba(248,244,233,0.2);
   color:var(--ivory); border-radius:3px;
@@ -1106,4 +966,6 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   cursor:pointer; transition:.15s;
 }
 .td-refresh:hover{ background:rgba(248,244,233,0.18); }
+.td-empty{ color:#7b8399; font-style:italic; margin:0; }
+.td-empty.small{ font-size:0.85rem; }
 `;
