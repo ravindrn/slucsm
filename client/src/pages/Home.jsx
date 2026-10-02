@@ -159,10 +159,14 @@ export default function Home() {
       <section id="about">
   <div className="motif" />
   <div className="center">
-    <p className="kicker">{about.kicker}</p>
-    <h2>{about.title}</h2>
-    <p className="lead">{about.lead}</p>
-  </div>
+  <p className="kicker">{about.kicker}</p>
+  <h2>
+    {(about.title || "").split("\n").map((line, i) => (
+      <span key={i} className="about-title-line">{line}</span>
+    ))}
+  </h2>
+  <p className="lead">{about.lead}</p>
+</div>
   <div className="pillars">
     {(about.pillars && about.pillars.length > 0
       ? about.pillars
@@ -690,5 +694,9 @@ html, body, #root{
   grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
   gap:34px;
   margin-top:10px;
+}
+
+.slucsm section h2 .about-title-line{
+  display:block;
 }
 `;

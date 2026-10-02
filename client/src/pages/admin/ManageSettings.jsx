@@ -413,13 +413,16 @@ function AboutPanel({ value, update }) {
           />
         </Field>
 
-        <Field label="Heading">
-          <input
-            type="text"
-            value={value.title || ""}
-            onChange={(e) => update("title", e.target.value)}
-            placeholder="One movement, every campus"
-          />
+        <Field label="Heading" full>
+        <textarea
+          rows={3}
+          value={value.title || ""}
+          onChange={(e) => update("title", e.target.value)}
+          placeholder={"One Faith. One Family.\nOne Movement."}
+        />
+        <p className="hint">
+          Press Enter to add a line break. Each line renders on its own row.
+        </p>
         </Field>
 
         <Field label="Lead paragraph" full>
