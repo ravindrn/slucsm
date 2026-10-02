@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
-const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000; // 30 min
+const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const WARNING_BEFORE_MS = 60 * 1000;       // warn 1 min before
 const ACTIVITY_EVENTS = [
   "mousemove",
@@ -13,16 +14,32 @@ const ACTIVITY_EVENTS = [
 ];
 
 /**
- * Auto-logout the user after a period of inactivity.
- * Resets on mouse/keyboard/scroll activity.
+ * Auto-logout the ADMIN user after a period of inactivity.
+ *
+ * IMPORTANT: Only runs when the current route is inside /admin/*.
+ * Team portal and public pages are NEVER affected by this timer.
  */
 export default function SessionTimer({ timeoutMs = DEFAULT_TIMEOUT_MS }) {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const lastActivityRef = useRef(Date.now());
   const warnedRef = useRef(false);
 
+  /* Only activate on admin routes */
+  const isAdminRoute =
+    location.pathname === "/admin" ||
+    location.pathname.startsWith("/admin/");
+
   useEffect(() => {
-    if (!user) return; // only when logged in
+    /* Don't run if:
+       - not on an admin route
+       - no admin logged in
+    */
+    if (!isAdminRoute || !user) return;
+
+    /* Reset on route change into admin */
+    lastActivityRef.current = Date.now();
+    warnedRef.current = false;
 
     const reset = () => {
       lastActivityRef.current = Date.now();
@@ -34,9 +51,15 @@ export default function SessionTimer({ timeoutMs = DEFAULT_TIMEOUT_MS }) {
     );
 
     const check = async () => {
+      /* Re-check route — if user navigated away, do nothing */
+      const stillAdminRoute =
+        window.location.pathname === "/admin" ||
+        window.location.pathname.startsWith("/admin/");
+      if (!stillAdminRoute) return;
+
       const idle = Date.now() - lastActivityRef.current;
 
-      /* Warn once when approaching timeout */
+      /* Warn once */
       if (
         idle >= timeoutMs - WARNING_BEFORE_MS &&
         idle < timeoutMs &&
@@ -44,14 +67,12 @@ export default function SessionTimer({ timeoutMs = DEFAULT_TIMEOUT_MS }) {
       ) {
         warnedRef.current = true;
         const keepGoing = window.confirm(
-          "Your session will expire in 1 minute. Click OK to stay signed in."
+          "Your admin session will expire in 1 minute. Click OK to stay signed in."
         );
-        if (keepGoing) {
-          reset();
-        }
+        if (keepGoing) reset();
       }
 
-      /* Log out when timed out */
+      /* Logout on timeout */
       if (idle >= timeoutMs) {
         try {
           await logout();
@@ -62,7 +83,7 @@ export default function SessionTimer({ timeoutMs = DEFAULT_TIMEOUT_MS }) {
       }
     };
 
-    const interval = setInterval(check, 15 * 1000); // check every 15s
+    const interval = setInterval(check, 15 * 1000);
 
     return () => {
       ACTIVITY_EVENTS.forEach((evt) =>
@@ -70,7 +91,7 @@ export default function SessionTimer({ timeoutMs = DEFAULT_TIMEOUT_MS }) {
       );
       clearInterval(interval);
     };
-  }, [user, logout, timeoutMs]);
+  }, [isAdminRoute, user, logout, timeoutMs]);
 
-  return null; // no UI
+  return null;
 }
