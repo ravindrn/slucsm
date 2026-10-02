@@ -62,13 +62,30 @@ router.post("/", protect, upload.single("photo"), async (req, res) => {
       body.order = Number(body.order) || 0;
     }
 
+    /* AUTO-ORDER: if order is 0 or missing, assign next in category */
+    if (!body.order || body.order === 0) {
+      const category = body.category || "executive";
+      const isSpiritual = category === "spiritual";
+
+      const filter = isSpiritual
+        ? { category: "spiritual" }
+        : { category: { $ne: "spiritual" } };
+
+      const highest = await CommitteeMember.findOne(filter)
+        .sort("-order")
+        .select("order");
+
+      const base = isSpiritual ? 0 : 9; /* spiritual starts at 1, committee at 10 */
+      body.order = highest ? (highest.order || base) + 1 : base + 1;
+    }
+
     if (req.file) body.photo = req.file.path;
 
     /* Auto-derive initials if not provided */
     if (!body.initials && body.name) {
       body.initials = body.name
         .split(" ")
-        .filter((w) => !/^fr\.?$/i.test(w)) // skip "Fr."
+        .filter((w) => !/^fr\.?$/i.test(w))
         .map((w) => w[0])
         .join("")
         .slice(0, 3)

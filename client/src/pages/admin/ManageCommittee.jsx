@@ -60,16 +60,37 @@ export default function ManageCommittee() {
 
   /* ---------- LOAD ---------- */
   const load = async () => {
-    try {
-      const { data } = await api.get("/committee/all");
-      setMembers(data);
-    } catch {
-      setError("Failed to load committee members.");
-      toast.error("Failed to load committee members");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const { data } = await api.get("/committee/all");
+    setMembers(data);
+
+    /* Update the empty form's default order based on loaded data */
+    const spiritual = data.filter((m) => m.category === "spiritual");
+    const committee = data.filter((m) => m.category !== "spiritual");
+
+    const maxSpiritual = spiritual.reduce(
+      (max, m) => Math.max(max, m.order || 0),
+      0
+    );
+    const maxCommittee = committee.reduce(
+      (max, m) => Math.max(max, m.order || 0),
+      0
+    );
+
+    /* Only update the form if we're not currently editing */
+    setSpiritualForm((f) =>
+      editingSpiritualId ? f : { ...f, order: maxSpiritual + 1 }
+    );
+    setMemberForm((f) =>
+      editingMemberId ? f : { ...f, order: maxCommittee ? maxCommittee + 1 : 10 }
+    );
+  } catch {
+    setError("Failed to load committee members.");
+    toast.error("Failed to load committee members");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     load();
@@ -129,11 +150,15 @@ export default function ManageCommittee() {
   };
 
   const resetSpiritual = () => {
-    setSpiritualForm(EMPTY_SPIRITUAL);
-    setEditingSpiritualId(null);
-    setSpiritualPhoto(null);
-    setSpiritualPreview("");
-  };
+  const maxOrder = spiritualMembers.reduce(
+    (max, m) => Math.max(max, m.order || 0),
+    0
+  );
+  setSpiritualForm({ ...EMPTY_SPIRITUAL, order: maxOrder + 1 });
+  setEditingSpiritualId(null);
+  setSpiritualPhoto(null);
+  setSpiritualPreview("");
+};
 
   const editSpiritual = (m) => {
     setEditingSpiritualId(m._id);
@@ -259,11 +284,18 @@ export default function ManageCommittee() {
   };
 
   const resetMember = () => {
-    setMemberForm(EMPTY_MEMBER);
-    setEditingMemberId(null);
-    setMemberPhoto(null);
-    setMemberPreview("");
-  };
+  const maxOrder = regularMembers.reduce(
+    (max, m) => Math.max(max, m.order || 0),
+    0
+  );
+  setMemberForm({
+    ...EMPTY_MEMBER,
+    order: maxOrder ? maxOrder + 1 : 10,
+  });
+  setEditingMemberId(null);
+  setMemberPhoto(null);
+  setMemberPreview("");
+};
 
   const editMember = (m) => {
     setEditingMemberId(m._id);
@@ -457,15 +489,18 @@ export default function ManageCommittee() {
                 />
               </div>
               <div>
-                <label>Order</label>
-                <input
-                  type="number"
-                  value={spiritualForm.order}
-                  onChange={(e) =>
-                    setSpiritual("order", Number(e.target.value) || 0)
-                  }
-                />
-              </div>
+            <label>Order</label>
+            <input
+              type="number"
+              value={spiritualForm.order}
+              onChange={(e) =>
+                setSpiritual("order", Number(e.target.value) || 0)
+              }
+            />
+            {!editingSpiritualId && (
+              <p className="mc-order-hint">Auto — placed after existing members</p>
+            )}
+          </div>
             </div>
 
             <label>Short description</label>
@@ -755,15 +790,18 @@ export default function ManageCommittee() {
 
             <div className="mc-grid-2">
               <div>
-                <label>Order</label>
-                <input
-                  type="number"
-                  value={memberForm.order}
-                  onChange={(e) =>
-                    setMember("order", Number(e.target.value) || 0)
-                  }
-                />
-              </div>
+              <label>Order</label>
+              <input
+                type="number"
+                value={memberForm.order}
+                onChange={(e) =>
+                  setMember("order", Number(e.target.value) || 0)
+                }
+              />
+              {!editingMemberId && (
+                <p className="mc-order-hint">Auto — placed after existing members</p>
+              )}
+            </div>
               <div>
                 <label>Active</label>
                 <label className="mc-toggle">
@@ -1193,4 +1231,11 @@ const css = `
   font-family:inherit;
 }
 .mc-icon-btn:hover{ background:#F8F4E9; }
+
+.mc-order-hint{
+  font-size:0.72rem;
+  color:#7b8399;
+  font-style:italic;
+  margin:4px 0 0;
+}
 `;
