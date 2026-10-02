@@ -15,7 +15,6 @@ export default function Home() {
 
   const closeNav = () => setNavOpen(false);
 
-  /* ---------- FETCH DATA ---------- */
   useEffect(() => {
     (async () => {
       try {
@@ -40,7 +39,6 @@ export default function Home() {
     })();
   }, []);
 
-  /* ---------- SLIDESHOW ---------- */
   const heroImages = settings?.hero?.images || [];
 
   useEffect(() => {
@@ -52,7 +50,6 @@ export default function Home() {
     return () => clearInterval(id);
   }, [heroImages.length]);
 
-  /* ---------- LOADING / ERROR ---------- */
   if (loading)
     return (
       <div style={{ padding: 80, textAlign: "center", fontFamily: "Inter" }}>
@@ -72,13 +69,34 @@ export default function Home() {
   const quote = settings.quote;
   const banner = settings.announcement;
 
-  /* ---------- SPLIT COMMITTEE ---------- */
   const spiritualLeaders = committee.filter(
     (m) => m.category === "spiritual"
   );
   const otherCommittee = committee.filter(
     (m) => m.category !== "spiritual"
   );
+
+  /* Default pillars if none configured */
+  const pillars =
+    about.pillars && about.pillars.length > 0
+      ? about.pillars
+      : [
+          {
+            title: "Prayer",
+            description:
+              "Regular Mass, adoration and shared devotion that anchor student life in Christ.",
+          },
+          {
+            title: "Fellowship",
+            description:
+              "Students from different universities meeting as one family, in joy and in service.",
+          },
+          {
+            title: "Formation",
+            description:
+              "Seminars and gatherings that deepen faith, leadership and love for the Church.",
+          },
+        ];
 
   return (
     <div className="slucsm">
@@ -157,44 +175,25 @@ export default function Home() {
 
       {/* ---------- ABOUT ---------- */}
       <section id="about">
-  <div className="motif" />
-  <div className="center">
-  <p className="kicker">{about.kicker}</p>
-  <h2>
-    {(about.title || "").split("\n").map((line, i) => (
-      <span key={i} className="about-title-line">{line}</span>
-    ))}
-  </h2>
-  <p className="lead">{about.lead}</p>
-</div>
-  <div className="pillars">
-    {(about.pillars && about.pillars.length > 0
-      ? about.pillars
-      : [
-          {
-            title: "Prayer",
-            description:
-              "Regular Mass, adoration and shared devotion that anchor student life in Christ.",
-          },
-          {
-            title: "Fellowship",
-            description:
-              "Students from different universities meeting as one family, in joy and in service.",
-          },
-          {
-            title: "Formation",
-            description:
-              "Seminars and gatherings that deepen faith, leadership and love for the Church.",
-          },
-        ]
-    ).map((p, i) => (
-      <div className="pillar" key={i}>
-        <h3>{p.title}</h3>
-        <p>{p.description}</p>
-      </div>
-    ))}
-  </div>
-</section>
+        <div className="motif" />
+        <div className="center">
+          <p className="kicker">{about.kicker}</p>
+          <h2>
+            {(about.title || "").split("\n").map((line, i) => (
+              <span key={i} className="about-title-line">{line}</span>
+            ))}
+          </h2>
+          <p className="lead">{about.lead}</p>
+        </div>
+        <div className="pillars">
+          {pillars.map((p, i) => (
+            <div className="pillar" key={i}>
+              <h3>{p.title}</h3>
+              <p>{p.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* ---------- ONGOING EVENTS ---------- */}
       {ongoingEvents.length > 0 && (
@@ -395,18 +394,14 @@ html, body, #root{
 .slucsm .motif{ width:1px; height:34px; background:var(--gold); margin:0 auto 18px; position:relative; }
 .slucsm .motif::before{ content:""; position:absolute; top:12px; left:-7px; width:15px; height:1px; background:var(--gold); }
 
-/* ==================== ANNOUNCEMENT BANNER ==================== */
+/* ANNOUNCEMENT */
 .slucsm .announcement-banner{
-  background:var(--ink);
-  color:var(--ivory);
-  text-align:center;
-  padding:11px 20px;
-  font-size:0.88rem;
-  letter-spacing:0.01em;
-  line-height:1.5;
+  background:var(--ink); color:var(--ivory);
+  text-align:center; padding:11px 20px;
+  font-size:0.88rem; letter-spacing:0.01em; line-height:1.5;
 }
 
-/* ==================== HEADER ==================== */
+/* HEADER */
 .slucsm header{
   position:sticky; top:0; z-index:20;
   background:rgba(248,244,233,0.92); backdrop-filter:blur(6px);
@@ -435,7 +430,7 @@ html, body, #root{
   .slucsm .navToggle{ display:block; }
 }
 
-/* ==================== HERO ==================== */
+/* HERO */
 .slucsm .hero{
   position:relative; overflow:hidden; text-align:center;
   padding:90px 0 100px; min-height:640px;
@@ -463,8 +458,7 @@ html, body, #root{
 .slucsm .hero-content{
   position:relative; z-index:1;
   max-width:680px; margin:0 auto;
-  width:100%;
-  padding:20px 6vw 10px;
+  width:100%; padding:20px 6vw 10px;
 }
 .slucsm .hero-logo{
   width:120px; height:120px; margin:0 auto 26px; border-radius:50%;
@@ -496,20 +490,43 @@ html, body, #root{
 .slucsm .hero-dots .dot:hover{ background:rgba(184,145,47,0.4); }
 .slucsm .hero-dots .dot.active{ background:var(--gold); width:26px; border-radius:6px; }
 
-/* ==================== SECTIONS ==================== */
+/* SECTIONS */
 .slucsm section{ padding:90px 6vw; max-width:1080px; margin:0 auto; }
 .slucsm .center{ text-align:center; max-width:620px; margin:0 auto 56px; }
 .slucsm .kicker{ color:var(--maroon); font-size:0.95rem; margin-bottom:8px; }
 .slucsm section h2{ font-size:clamp(1.9rem,4vw,2.6rem); font-weight:600; margin:0 0 14px; }
+.slucsm section h2 .about-title-line{ display:block; }
 .slucsm .lead{ color:#3a4560; font-size:1.05rem; }
 
-.slucsm .pillars{ display:grid; grid-template-columns:repeat(3,1fr); gap:34px; margin-top:10px; }
-.slucsm .pillar{ border-top:1px solid var(--line); padding-top:20px; }
+/* PILLARS — centered flexbox */
+.slucsm .pillars{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:stretch;
+  gap:34px;
+  margin-top:10px;
+  max-width:1000px;
+  margin-left:auto;
+  margin-right:auto;
+}
+.slucsm .pillar{
+  flex:0 1 280px;
+  max-width:320px;
+  text-align:center;
+  border-top:1px solid var(--line);
+  padding-top:20px;
+}
 .slucsm .pillar h3{ font-size:1.35rem; margin:0 0 8px; font-weight:600; }
 .slucsm .pillar p{ font-size:0.96rem; color:#4a5470; margin:0; }
-@media (max-width:760px){ .slucsm .pillars{ grid-template-columns:1fr; } }
+@media (max-width:760px){
+  .slucsm .pillar{
+    flex:1 1 100%;
+    max-width:100%;
+  }
+}
 
-/* ==================== ONGOING / LIVE EVENTS ==================== */
+/* LIVE EVENTS */
 .slucsm .live-section{ background:linear-gradient(180deg, rgba(184,145,47,0.06), rgba(184,145,47,0.02)); }
 .slucsm .live-kicker{ color:#b23b3b; font-weight:600; }
 .slucsm .live-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:28px; }
@@ -535,7 +552,7 @@ html, body, #root{
 .slucsm .live-desc{ font-size:0.9rem; color:#4a5470; margin:0 0 14px; }
 .slucsm .live-cta{ font-size:0.9rem; color:var(--gold); font-weight:500; }
 
-/* ==================== EVENT LIST ==================== */
+/* EVENT LIST */
 .slucsm .event-list{ display:flex; flex-direction:column; gap:0; }
 .slucsm .event{ display:grid; grid-template-columns:150px 1fr; gap:36px; padding:38px 0; border-top:1px solid var(--line); }
 .slucsm .event:last-child{ border-bottom:1px solid var(--line); }
@@ -550,7 +567,7 @@ html, body, #root{
 .slucsm .read-more:hover{ color:var(--maroon); }
 @media (max-width:640px){ .slucsm .event{ grid-template-columns:1fr; gap:8px; } }
 
-/* ==================== SPIRITUAL LEADERS ==================== */
+/* SPIRITUAL LEADERS */
 .slucsm .spiritual-section{
   background:linear-gradient(180deg, rgba(184,145,47,0.06), rgba(184,145,47,0.02));
 }
@@ -598,7 +615,7 @@ html, body, #root{
   text-align:center;
 }
 
-/* ==================== COMMITTEE ==================== */
+/* COMMITTEE */
 .slucsm .committee{
   display:grid;
   grid-template-columns:repeat(2, 1fr);
@@ -634,7 +651,7 @@ html, body, #root{
 .slucsm .member .role{ font-size:0.9rem; color:var(--maroon); margin:0 0 4px; }
 .slucsm .member .uni{ font-size:0.85rem; color:#6c7590; margin:0; }
 
-/* ---------- BIO (wide) ---------- */
+/* BIO */
 .slucsm .member .bio{
   font-size:0.95rem;
   color:#3a4560;
@@ -646,23 +663,21 @@ html, body, #root{
   margin-right:auto;
   text-align:left;
   display:-webkit-box;
-  -webkit-line-clamp:10;
+  -webkit-line-clamp:15;
   -webkit-box-orient:vertical;
   overflow:hidden;
 }
 
-/* ---------- Tablet ---------- */
 @media (max-width:820px){
   .slucsm .committee{ grid-template-columns:1fr; gap:40px; }
   .slucsm .committee.spiritual{ grid-template-columns:1fr; gap:40px; }
   .slucsm .member .bio{
     max-width:100%;
     text-align:left;
-    -webkit-line-clamp:12;
+    -webkit-line-clamp:20;
   }
 }
 
-/* ---------- Phone ---------- */
 @media (max-width:640px){
   .slucsm .committee.spiritual{ gap:32px; }
   .slucsm .avatar.spiritual{
@@ -674,11 +689,12 @@ html, body, #root{
   .slucsm .member .bio{
     font-size:0.88rem;
     line-height:1.65;
-    -webkit-line-clamp:15;
+    -webkit-line-clamp:25;
   }
   .slucsm .avatar{ width:88px; height:88px; }
 }
-/* ==================== QUOTE + FOOTER ==================== */
+
+/* QUOTE + FOOTER */
 .slucsm .quote{ background:var(--ink); color:var(--ivory); text-align:center; padding:90px 6vw; }
 .slucsm .quote blockquote{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:clamp(1.5rem,3vw,2.1rem); max-width:680px; margin:0 auto 16px; font-weight:500; }
 .slucsm .quote cite{ font-size:0.9rem; opacity:0.75; font-style:normal; }
@@ -688,15 +704,4 @@ html, body, #root{
 .slucsm footer .links{ display:flex; gap:22px; justify-content:center; margin:18px 0; flex-wrap:wrap; font-size:0.9rem; }
 .slucsm footer .links a{ text-decoration:none; opacity:0.8; }
 .slucsm footer .links a:hover{ opacity:1; color:var(--maroon); }
-
-.slucsm .pillars{
-  display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
-  gap:34px;
-  margin-top:10px;
-}
-
-.slucsm section h2 .about-title-line{
-  display:block;
-}
 `;
