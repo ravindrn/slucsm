@@ -35,13 +35,20 @@ export default function GalleryEditor({ data, onChange, eventId }) {
   };
 
   /* ---------- UPLOAD ---------- */
-  const uploadFiles = async (fileList) => {
-    const incoming = Array.from(fileList || []).filter((f) =>
-      f.type.startsWith("image/")
+  const uploadFiles = async (rawFiles) => {
+    /* STEP 1: Convert FileList to a stable array IMMEDIATELY */
+    const incoming = Array.from(rawFiles || []).filter(
+      (f) => f && f.type && f.type.startsWith("image/")
     );
+
     if (!incoming.length) {
       setErr("Please select image files only.");
       return;
+    }
+
+    /* STEP 2: Reset the input value BEFORE any async work */
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
 
     setErr("");
@@ -49,7 +56,11 @@ export default function GalleryEditor({ data, onChange, eventId }) {
 
     try {
       const fd = new FormData();
-      incoming.forEach((f) => fd.append("files", f));
+      /* STEP 3: Append each file exactly once */
+      incoming.forEach((f, i) => {
+        fd.append("files", f, f.name || `file-${i}.jpg`);
+      });
+
       if (eventId) fd.append("eventId", eventId);
       fd.append("tag", "event-gallery");
 
@@ -67,17 +78,28 @@ export default function GalleryEditor({ data, onChange, eventId }) {
       setErr(e.response?.data?.message || "Upload failed");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const onPickFiles = (e) => uploadFiles(e.target.files);
+  /* Capture files from input and IMMEDIATELY clear the input */
+  const onPickFiles = (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    /* Copy to array synchronously to avoid stale references */
+    const copied = Array.from(files);
+    e.target.value = "";
+
+    uploadFiles(copied);
+  };
 
   const onDrop = (e) => {
     e.preventDefault();
     setDragging(false);
-    if (e.dataTransfer.files?.length) {
-      uploadFiles(e.dataTransfer.files);
+    const files = e.dataTransfer?.files;
+    if (files && files.length) {
+      const copied = Array.from(files);
+      uploadFiles(copied);
     }
   };
 
@@ -121,7 +143,7 @@ export default function GalleryEditor({ data, onChange, eventId }) {
             : "Drag & drop images here"}
         </div>
         <div className="fe-dropzone-hint">
-          or click to browse · JPG, PNG, WEBP · up to 15 MB each
+          or click to browse · JPG, PNG, WEBP · select multiple at once
         </div>
       </div>
 
