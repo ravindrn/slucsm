@@ -45,6 +45,13 @@ const storage = new CloudinaryStorage({
   params: async (_req, file) => buildParams(file),
 });
 
+/* ============================================================
+   MULTER CONFIG
+   ------------------------------------------------------------
+   fileFilter runs for EVERY file multer receives. If the same
+   File object is appended twice to the FormData, multer calls
+   fileFilter twice — producing duplicate uploads to Cloudinary.
+   ============================================================ */
 export const upload = multer({
   storage,
   limits: { fileSize: 60 * 1024 * 1024 }, // 60 MB
@@ -57,3 +64,35 @@ export const upload = multer({
     cb(ok ? null : new Error("Images or videos only"), ok);
   },
 });
+
+/* ============================================================
+   DEDUPE MIDDLEWARE
+   ------------------------------------------------------------
+   Runs AFTER multer. If multer somehow produced duplicate
+   entries (same originalName + size + min gap), drop the extras.
+   ============================================================ */
+export function dedupeUploads(req, res, next) {
+  if (!Array.isArray(req.files) || req.files.length <= 1) return next();
+
+  const seen = new Map();
+  const unique = [];
+
+  for (const f of req.files) {
+    const key = `${f.originalname}::${f.size}`;
+
+    if (!seen.has(key)) {
+      seen.set(key, f);
+      unique.push(f);
+    } else {
+      /* Drop later duplicate — already have one with this signature */
+      console.log(
+        "[dedupeUploads] Dropped duplicate:",
+        f.originalname,
+        f.size
+      );
+    }
+  }
+
+  req.files = unique;
+  next();
+}
