@@ -19,8 +19,6 @@ const EventSchema = new mongoose.Schema(
   {
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     title: { type: String, required: true },
-
-    /* ---------- THEME (main verse / tagline for the event) ---------- */
     theme: { type: String, default: "" },
 
     when: { type: String, default: "" },

@@ -20,6 +20,7 @@ const EMPTY = {
   published: true,
   sections: [],
 };
+
 export default function EventEditor() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -30,7 +31,6 @@ export default function EventEditor() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
-  /* Load existing event */
   useEffect(() => {
     if (isNew) return;
     (async () => {
@@ -54,7 +54,6 @@ export default function EventEditor() {
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  /* ---------- SECTIONS ---------- */
   const addSection = (kind) => {
     setForm((f) => ({
       ...f,
@@ -98,7 +97,6 @@ export default function EventEditor() {
     });
   };
 
-  /* ---------- COVER UPLOAD ---------- */
   const uploadCover = async (file) => {
     if (!file) return;
     try {
@@ -118,7 +116,6 @@ export default function EventEditor() {
     }
   };
 
-  /* ---------- SAVE ---------- */
   const save = async (e) => {
     e?.preventDefault();
     setErr("");
@@ -182,7 +179,6 @@ export default function EventEditor() {
       {err && <div className="ee-error">{err}</div>}
 
       <form onSubmit={save}>
-        {/* ---------- BASIC INFO ---------- */}
         <section className="ee-card">
           <h2>Basic information</h2>
           <div className="ee-grid">
@@ -206,6 +202,19 @@ export default function EventEditor() {
                 required
               />
             </Field>
+
+            <Field label="Theme (tagline / verse)" full>
+              <input
+                type="text"
+                value={form.theme || ""}
+                onChange={(e) => set("theme", e.target.value)}
+                placeholder="e.g. Let Your Light Shine — Matthew 5:16"
+              />
+              <p className="ee-hint">
+                A short verse or tagline shown on the live event card and the event page.
+              </p>
+            </Field>
+
             <Field label="When">
               <input
                 type="text"
@@ -229,17 +238,6 @@ export default function EventEditor() {
                 onChange={(e) => set("tag", e.target.value)}
                 placeholder="Main event of the year"
               />
-            </Field>
-            <Field label="Theme" full>
-              <input
-                type="text"
-                value={form.theme || ""}
-                onChange={(e) => set("theme", e.target.value)}
-                placeholder="e.g. Let Your Light Shine — Matthew 5:16"
-              />
-              <p className="ee-hint">
-                Short verse or tagline shown on the live event card and event page.
-              </p>
             </Field>
             <Field label="Status">
               <select
@@ -267,7 +265,6 @@ export default function EventEditor() {
               />
             </Field>
 
-            {/* ---------- COVER IMAGE WITH UPLOAD ---------- */}
             <Field label="Cover image" full>
               <div className="ee-cover-block">
                 {form.coverImage && (
@@ -335,7 +332,6 @@ export default function EventEditor() {
           </div>
         </section>
 
-        {/* ---------- SECTIONS ---------- */}
         <section className="ee-card">
           <div className="ee-card-head">
             <div>
@@ -495,12 +491,18 @@ const css = `
 }
 .ee-field textarea{ resize:vertical; min-height:80px; }
 
+.ee-hint{
+  font-size:0.75rem;
+  color:#7b8399;
+  font-style:italic;
+  margin:4px 0 0;
+}
+
 .ee-check{
   display:flex; align-items:center; gap:8px;
   font-size:0.9rem;
 }
 
-/* ---------- COVER IMAGE ---------- */
 .ee-cover-block{
   display:flex;
   flex-direction:column;
@@ -571,7 +573,6 @@ const css = `
 }
 .ee-cover-upload:hover{ background:#6E2C2C; border-color:#6E2C2C; }
 
-/* ---------- SECTIONS ---------- */
 .ee-empty-sections{
   padding:30px; text-align:center;
   color:#7b8399; font-style:italic;
@@ -605,7 +606,6 @@ const css = `
   border-color:#B8912F;
 }
 
-/* ---------- SECTION EDITOR INNER ---------- */
 .section-editor{
   background:#fff;
   border:1px solid rgba(27,42,74,0.14);
@@ -655,7 +655,6 @@ const css = `
   font-size:0.9rem; margin-bottom:14px;
 }
 
-/* ---------- FIELD EDITOR WRAPPERS ---------- */
 .fe-label{
   font-size:0.82rem; font-weight:500; color:#3a4560;
   display:block; margin-bottom:6px;
@@ -665,11 +664,4 @@ const css = `
   margin:6px 0 0;
 }
 .fe-empty{ color:#7b8399; font-style:italic; font-size:0.88rem; margin:0; }
-
-.ee-hint{
-  font-size:0.75rem;
-  color:#7b8399;
-  font-style:italic;
-  margin:4px 0 0;
-}
 `;

@@ -76,7 +76,6 @@ export default function Home() {
     (m) => m.category !== "spiritual"
   );
 
-  /* Default pillars if none configured */
   const pillars =
     about.pillars && about.pillars.length > 0
       ? about.pillars
@@ -555,6 +554,24 @@ html, body, #root{
 .slucsm .live-badge.ongoing{ background:#b23b3b; color:#fff; }
 .slucsm .live-badge.upcoming{ background:var(--gold); color:#fff; }
 .slucsm .live-card h3{ font-size:1.4rem; margin:12px 0 6px; font-weight:600; }
+.slucsm .live-theme{
+  font-family:'Cormorant Garamond', serif;
+  font-size:1.05rem;
+  font-style:italic;
+  color:var(--maroon);
+  margin:6px 0 10px;
+  line-height:1.4;
+  display:flex;
+  align-items:baseline;
+  gap:2px;
+  flex-wrap:wrap;
+}
+.slucsm .live-theme-quote{
+  color:var(--gold);
+  font-size:1.3rem;
+  line-height:1;
+  font-weight:600;
+}
 .slucsm .live-when{ font-size:0.85rem; color:var(--maroon); margin:0 0 10px; }
 .slucsm .live-desc{ font-size:0.9rem; color:#4a5470; margin:0 0 14px; }
 .slucsm .live-cta{ font-size:0.9rem; color:var(--gold); font-weight:500; }
@@ -711,23 +728,4 @@ html, body, #root{
 .slucsm footer .links{ display:flex; gap:22px; justify-content:center; margin:18px 0; flex-wrap:wrap; font-size:0.9rem; }
 .slucsm footer .links a{ text-decoration:none; opacity:0.8; }
 .slucsm footer .links a:hover{ opacity:1; color:var(--maroon); }
-
-.slucsm .live-theme{
-  font-family:'Cormorant Garamond', serif;
-  font-size:1.05rem;
-  font-style:italic;
-  color:var(--maroon);
-  margin:6px 0 10px;
-  line-height:1.4;
-  display:flex;
-  align-items:baseline;
-  gap:2px;
-  flex-wrap:wrap;
-}
-.slucsm .live-theme-quote{
-  color:var(--gold);
-  font-size:1.3rem;
-  line-height:1;
-  font-weight:600;
-}
 `;
