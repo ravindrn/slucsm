@@ -157,27 +157,40 @@ export default function Home() {
 
       {/* ---------- ABOUT ---------- */}
       <section id="about">
-        <div className="motif" />
-        <div className="center">
-          <p className="kicker">{about.kicker}</p>
-          <h2>{about.title}</h2>
-          <p className="lead">{about.lead}</p>
-        </div>
-        <div className="pillars">
-          <div className="pillar">
-            <h3>Prayer</h3>
-            <p>Regular Mass, adoration and shared devotion that anchor student life in Christ.</p>
-          </div>
-          <div className="pillar">
-            <h3>Fellowship</h3>
-            <p>Students from different universities meeting as one family, in joy and in service.</p>
-          </div>
-          <div className="pillar">
-            <h3>Formation</h3>
-            <p>Seminars and gatherings that deepen faith, leadership and love for the Church.</p>
-          </div>
-        </div>
-      </section>
+  <div className="motif" />
+  <div className="center">
+    <p className="kicker">{about.kicker}</p>
+    <h2>{about.title}</h2>
+    <p className="lead">{about.lead}</p>
+  </div>
+  <div className="pillars">
+    {(about.pillars && about.pillars.length > 0
+      ? about.pillars
+      : [
+          {
+            title: "Prayer",
+            description:
+              "Regular Mass, adoration and shared devotion that anchor student life in Christ.",
+          },
+          {
+            title: "Fellowship",
+            description:
+              "Students from different universities meeting as one family, in joy and in service.",
+          },
+          {
+            title: "Formation",
+            description:
+              "Seminars and gatherings that deepen faith, leadership and love for the Church.",
+          },
+        ]
+    ).map((p, i) => (
+      <div className="pillar" key={i}>
+        <h3>{p.title}</h3>
+        <p>{p.description}</p>
+      </div>
+    ))}
+  </div>
+</section>
 
       {/* ---------- ONGOING EVENTS ---------- */}
       {ongoingEvents.length > 0 && (
@@ -671,4 +684,11 @@ html, body, #root{
 .slucsm footer .links{ display:flex; gap:22px; justify-content:center; margin:18px 0; flex-wrap:wrap; font-size:0.9rem; }
 .slucsm footer .links a{ text-decoration:none; opacity:0.8; }
 .slucsm footer .links a:hover{ opacity:1; color:var(--maroon); }
+
+.slucsm .pillars{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+  gap:34px;
+  margin-top:10px;
+}
 `;

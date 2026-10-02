@@ -369,6 +369,33 @@ function HeroPanel({ value, update }) {
    ABOUT PANEL
    ============================================================ */
 function AboutPanel({ value, update }) {
+  const pillars = value.pillars || [];
+
+  const updatePillar = (i, key, val) => {
+    const next = [...pillars];
+    next[i] = { ...next[i], [key]: val };
+    update("pillars", next);
+  };
+
+  const addPillar = () => {
+    update("pillars", [...pillars, { title: "", description: "" }]);
+  };
+
+  const removePillar = (i) => {
+    update(
+      "pillars",
+      pillars.filter((_, idx) => idx !== i)
+    );
+  };
+
+  const movePillar = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= pillars.length) return;
+    const next = [...pillars];
+    [next[i], next[j]] = [next[j], next[i]];
+    update("pillars", next);
+  };
+
   return (
     <div className="panel">
       <h2>About section</h2>
@@ -404,6 +431,80 @@ function AboutPanel({ value, update }) {
           />
         </Field>
       </div>
+
+      {/* ---------- PILLARS ---------- */}
+      <h3 className="sub-head">Pillars</h3>
+      <p className="panel-sub">
+        The three (or more) cards shown under the About section — like Prayer,
+        Fellowship, Formation.
+      </p>
+
+      <div className="pillar-list">
+        {pillars.length === 0 && (
+          <p className="empty-note">No pillars yet.</p>
+        )}
+
+        {pillars.map((p, i) => (
+          <div key={i} className="pillar-edit">
+            <div className="pillar-edit-head">
+              <span className="pillar-edit-label">Pillar {i + 1}</span>
+
+              <div className="pillar-edit-actions">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => movePillar(i, -1)}
+                  disabled={i === 0}
+                  title="Move up"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => movePillar(i, 1)}
+                  disabled={i === pillars.length - 1}
+                  title="Move down"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn danger"
+                  onClick={() => removePillar(i)}
+                  title="Remove"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <Field label="Title">
+              <input
+                type="text"
+                value={p.title || ""}
+                onChange={(e) => updatePillar(i, "title", e.target.value)}
+                placeholder="Prayer"
+              />
+            </Field>
+
+            <Field label="Description">
+              <textarea
+                rows={2}
+                value={p.description || ""}
+                onChange={(e) =>
+                  updatePillar(i, "description", e.target.value)
+                }
+                placeholder="Regular Mass, adoration and shared devotion..."
+              />
+            </Field>
+          </div>
+        ))}
+      </div>
+
+      <button type="button" className="add-btn" onClick={addPillar}>
+        + Add pillar
+      </button>
     </div>
   );
 }

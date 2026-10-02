@@ -15,6 +15,12 @@ const SettingsSchema = new mongoose.Schema(
       kicker: String,
       title: String,
       lead: String,
+      pillars: [
+        {
+          title: { type: String, default: "" },
+          description: { type: String, default: "" },
+        },
+      ],
     },
     quote: {
       text: String,
