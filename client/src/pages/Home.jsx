@@ -224,6 +224,13 @@ export default function Home() {
                     {ev.status === "ongoing" ? "● Happening now" : "Upcoming"}
                   </span>
                   <h3>{ev.title}</h3>
+                  {ev.theme && (
+                    <p className="live-theme">
+                      <span className="live-theme-quote">"</span>
+                      {ev.theme}
+                      <span className="live-theme-quote">"</span>
+                    </p>
+                  )}
                   <p className="live-when">{ev.when} · {ev.place}</p>
                   <p className="live-desc">{ev.description?.slice(0, 120)}…</p>
                   <span className="live-cta">Enter event →</span>
@@ -704,4 +711,23 @@ html, body, #root{
 .slucsm footer .links{ display:flex; gap:22px; justify-content:center; margin:18px 0; flex-wrap:wrap; font-size:0.9rem; }
 .slucsm footer .links a{ text-decoration:none; opacity:0.8; }
 .slucsm footer .links a:hover{ opacity:1; color:var(--maroon); }
+
+.slucsm .live-theme{
+  font-family:'Cormorant Garamond', serif;
+  font-size:1.05rem;
+  font-style:italic;
+  color:var(--maroon);
+  margin:6px 0 10px;
+  line-height:1.4;
+  display:flex;
+  align-items:baseline;
+  gap:2px;
+  flex-wrap:wrap;
+}
+.slucsm .live-theme-quote{
+  color:var(--gold);
+  font-size:1.3rem;
+  line-height:1;
+  font-weight:600;
+}
 `;

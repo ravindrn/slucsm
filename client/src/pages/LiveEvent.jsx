@@ -49,20 +49,27 @@ export default function LiveEvent() {
         )}
         <div className="lv-hero-overlay" />
         <div className="lv-hero-content">
-          <span className={`lv-badge ${event.status}`}>
-            {event.status === "ongoing" ? "● Happening now" : "Upcoming"}
-          </span>
-          <h1>{event.title}</h1>
-          <p className="lv-meta">
-            {event.when} {event.place && `· ${event.place}`}
+  <span className={`lv-badge ${event.status}`}>
+    {event.status === "ongoing" ? "● Happening now" : "Upcoming"}
+  </span>
+        <h1>{event.title}</h1>
+        {event.theme && (
+          <p className="lv-theme">
+            <span className="lv-theme-quote">"</span>
+            {event.theme}
+            <span className="lv-theme-quote">"</span>
           </p>
-          <Link
-            to={`/events/live/${slug}/scoreboard`}
-            className="lv-scoreboard-btn"
-          >
-            🏆 View Live Scoreboard
-          </Link>
-        </div>
+        )}
+        <p className="lv-meta">
+          {event.when} {event.place && `· ${event.place}`}
+        </p>
+        <Link
+          to={`/events/live/${slug}/scoreboard`}
+          className="btn solid"
+        >
+          🏆 View Live Scoreboard
+        </Link>
+      </div>
       </header>
 
       <main className="lv-main">
@@ -201,4 +208,24 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 .contact-list{ list-style:none; padding:0; margin:0; }
 .contact-list li{ padding:8px 0; }
 .custom-html{ color:#3a4560; }
+
+.lv-theme{
+  font-family:'Cormorant Garamond', serif;
+  font-size:clamp(1.15rem,2.4vw,1.5rem);
+  font-style:italic;
+  color:var(--maroon);
+  margin:10px 0 14px;
+  line-height:1.4;
+  display:flex;
+  align-items:baseline;
+  justify-content:center;
+  gap:2px;
+  flex-wrap:wrap;
+}
+.lv-theme-quote{
+  color:var(--gold);
+  font-size:1.5em;
+  line-height:1;
+  font-weight:600;
+}
 `;

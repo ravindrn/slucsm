@@ -7,6 +7,7 @@ import { SECTION_KINDS, defaultDataFor } from "../../components/admin/fieldEdito
 const EMPTY = {
   slug: "",
   title: "",
+  theme: "",
   when: "",
   place: "",
   tag: "",
@@ -19,7 +20,6 @@ const EMPTY = {
   published: true,
   sections: [],
 };
-
 export default function EventEditor() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -229,6 +229,17 @@ export default function EventEditor() {
                 onChange={(e) => set("tag", e.target.value)}
                 placeholder="Main event of the year"
               />
+            </Field>
+            <Field label="Theme" full>
+              <input
+                type="text"
+                value={form.theme || ""}
+                onChange={(e) => set("theme", e.target.value)}
+                placeholder="e.g. Let Your Light Shine — Matthew 5:16"
+              />
+              <p className="ee-hint">
+                Short verse or tagline shown on the live event card and event page.
+              </p>
             </Field>
             <Field label="Status">
               <select
@@ -654,4 +665,11 @@ const css = `
   margin:6px 0 0;
 }
 .fe-empty{ color:#7b8399; font-style:italic; font-size:0.88rem; margin:0; }
+
+.ee-hint{
+  font-size:0.75rem;
+  color:#7b8399;
+  font-style:italic;
+  margin:4px 0 0;
+}
 `;

@@ -1,17 +1,5 @@
 import mongoose from "mongoose";
 
-/**
- * Section kinds:
- *  - notice        : announcements list
- *  - schedule      : agenda items with time + title
- *  - registration  : builtin form | googleForm link | external link
- *  - games         : teams + tasks module (enables team portal)
- *  - gallery       : photos
- *  - history       : year-by-year notes
- *  - custom        : free HTML/markdown block
- *  - contact       : who to reach out to
- */
-
 const SectionSchema = new mongoose.Schema(
   {
     kind: {
@@ -19,7 +7,7 @@ const SectionSchema = new mongoose.Schema(
       enum: ["notice", "schedule", "registration", "games", "gallery", "history", "custom", "contact"],
       required: true,
     },
-    title: { type: String, default: "" },   // optional heading override
+    title: { type: String, default: "" },
     enabled: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
     data: { type: mongoose.Schema.Types.Mixed, default: {} },
@@ -31,12 +19,16 @@ const EventSchema = new mongoose.Schema(
   {
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     title: { type: String, required: true },
-    when: { type: String, default: "" },          // "Annually" / "Feb 14–16"
+
+    /* ---------- THEME (main verse / tagline for the event) ---------- */
+    theme: { type: String, default: "" },
+
+    when: { type: String, default: "" },
     place: { type: String, default: "" },
     tag: { type: String, default: "" },
-    description: { type: String, default: "" },   // main paragraphs
+    description: { type: String, default: "" },
     coverImage: { type: String, default: "" },
-    galleryPreview: [{ type: String }],           // 3-4 preview photos on home
+    galleryPreview: [{ type: String }],
 
     status: {
       type: String,
