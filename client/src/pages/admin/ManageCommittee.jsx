@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import api, { imgUrl } from "../../api/axios";
+import toast from "react-hot-toast";
+import { confirmDialog } from "../../lib/dialogs";
 
 const EMPTY_SPIRITUAL = {
   name: "",
@@ -41,17 +43,13 @@ export default function ManageCommittee() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  /* Two independent form states */
   const [spiritualForm, setSpiritualForm] = useState(EMPTY_SPIRITUAL);
   const [memberForm, setMemberForm] = useState(EMPTY_MEMBER);
 
-  /* Track which section we're editing */
   const [editingSpiritualId, setEditingSpiritualId] = useState(null);
   const [editingMemberId, setEditingMemberId] = useState(null);
 
-  /* Separate photo state per form */
   const [spiritualPhoto, setSpiritualPhoto] = useState(null);
   const [spiritualPreview, setSpiritualPreview] = useState("");
   const [memberPhoto, setMemberPhoto] = useState(null);
@@ -65,8 +63,9 @@ export default function ManageCommittee() {
     try {
       const { data } = await api.get("/committee/all");
       setMembers(data);
-    } catch (e) {
+    } catch {
       setError("Failed to load committee members.");
+      toast.error("Failed to load committee members");
     } finally {
       setLoading(false);
     }
@@ -77,12 +76,8 @@ export default function ManageCommittee() {
   }, []);
 
   /* ---------- SPLIT ---------- */
-  const spiritualMembers = members.filter(
-    (m) => m.category === "spiritual"
-  );
-  const regularMembers = members.filter(
-    (m) => m.category !== "spiritual"
-  );
+  const spiritualMembers = members.filter((m) => m.category === "spiritual");
+  const regularMembers = members.filter((m) => m.category !== "spiritual");
 
   /* ============================================================
      SPIRITUAL DIRECTORS
@@ -100,7 +95,6 @@ export default function ManageCommittee() {
   const saveSpiritual = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
     setSavingSpiritual(true);
 
     try {
@@ -116,18 +110,19 @@ export default function ManageCommittee() {
         await api.put(`/committee/${editingSpiritualId}`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        setSuccess("Spiritual director updated.");
+        toast.success("Spiritual director updated");
       } else {
         await api.post("/committee", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        setSuccess("Spiritual director added.");
+        toast.success("Spiritual director added");
       }
-      setTimeout(() => setSuccess(""), 2500);
       resetSpiritual();
       await load();
     } catch (e) {
-      setError(e.response?.data?.message || "Save failed");
+      const msg = e.response?.data?.message || "Save failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSavingSpiritual(false);
     }
@@ -162,9 +157,21 @@ export default function ManageCommittee() {
   };
 
   const delSpiritual = async (m) => {
-    if (!window.confirm(`Delete "${m.name}"?`)) return;
-    await api.delete(`/committee/${m._id}`);
-    setMembers((list) => list.filter((x) => x._id !== m._id));
+    const ok = await confirmDialog({
+      title: "Delete spiritual director?",
+      text: `"${m.name}" will be permanently removed.`,
+      icon: "warning",
+      danger: true,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/committee/${m._id}`);
+      setMembers((list) => list.filter((x) => x._id !== m._id));
+      toast.success("Spiritual director deleted");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Delete failed");
+    }
   };
 
   const toggleSpiritualActive = async (m) => {
@@ -175,8 +182,9 @@ export default function ManageCommittee() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setMembers((list) => list.map((x) => (x._id === m._id ? data : x)));
+      toast.success(m.active ? "Hidden from site" : "Visible on site");
     } catch {
-      alert("Toggle failed");
+      toast.error("Toggle failed");
     }
   };
 
@@ -217,7 +225,6 @@ export default function ManageCommittee() {
   const saveMember = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
     setSavingMember(true);
 
     try {
@@ -233,18 +240,19 @@ export default function ManageCommittee() {
         await api.put(`/committee/${editingMemberId}`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        setSuccess("Member updated.");
+        toast.success("Member updated");
       } else {
         await api.post("/committee", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        setSuccess("Member added.");
+        toast.success("Member added");
       }
-      setTimeout(() => setSuccess(""), 2500);
       resetMember();
       await load();
     } catch (e) {
-      setError(e.response?.data?.message || "Save failed");
+      const msg = e.response?.data?.message || "Save failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSavingMember(false);
     }
@@ -279,9 +287,21 @@ export default function ManageCommittee() {
   };
 
   const delMember = async (m) => {
-    if (!window.confirm(`Delete "${m.name}"?`)) return;
-    await api.delete(`/committee/${m._id}`);
-    setMembers((list) => list.filter((x) => x._id !== m._id));
+    const ok = await confirmDialog({
+      title: "Delete committee member?",
+      text: `"${m.name}" will be permanently removed.`,
+      icon: "warning",
+      danger: true,
+      confirmText: "Delete",
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/committee/${m._id}`);
+      setMembers((list) => list.filter((x) => x._id !== m._id));
+      toast.success("Member deleted");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Delete failed");
+    }
   };
 
   const toggleMemberActive = async (m) => {
@@ -292,8 +312,9 @@ export default function ManageCommittee() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setMembers((list) => list.map((x) => (x._id === m._id ? data : x)));
+      toast.success(m.active ? "Hidden from site" : "Visible on site");
     } catch {
-      alert("Toggle failed");
+      toast.error("Toggle failed");
     }
   };
 
@@ -324,7 +345,6 @@ export default function ManageCommittee() {
     <div className="manage-committee">
       <style>{css}</style>
 
-      {/* ---------- HEAD ---------- */}
       <div className="mc-head">
         <div>
           <h1>Committee</h1>
@@ -344,11 +364,8 @@ export default function ManageCommittee() {
       </div>
 
       {error && <div className="mc-banner error">{error}</div>}
-      {success && <div className="mc-banner success">{success}</div>}
 
-      {/* ============================================================
-          SPIRITUAL DIRECTORS SECTION
-         ============================================================ */}
+      {/* SPIRITUAL DIRECTORS SECTION */}
       <section className="mc-section spiritual-section">
         <div className="mc-section-head">
           <div>
@@ -361,7 +378,6 @@ export default function ManageCommittee() {
         </div>
 
         <div className="mc-layout">
-          {/* SPIRITUAL FORM */}
           <form className="mc-form" onSubmit={saveSpiritual}>
             <h3>
               {editingSpiritualId
@@ -454,14 +470,14 @@ export default function ManageCommittee() {
 
             <label>Short description</label>
             <textarea
-              rows={3}
+              rows={5}
               value={spiritualForm.bio}
               onChange={(e) => setSpiritual("bio", e.target.value)}
-              placeholder="A brief note about this person (max 500 chars)"
-              maxLength={500}
+              placeholder="A brief note about this person (max 1000 chars)"
+              maxLength={1000}
               className="mc-bio-input"
             />
-            <p className="mc-bio-counter">{spiritualForm.bio.length}/500</p>
+            <p className="mc-bio-counter">{spiritualForm.bio.length}/1000</p>
 
             <label className="mc-toggle">
               <input
@@ -498,7 +514,6 @@ export default function ManageCommittee() {
             </div>
           </form>
 
-          {/* SPIRITUAL LIST */}
           <div className="mc-list spiritual-list">
             <h3>
               {spiritualMembers.length} spiritual director
@@ -531,8 +546,8 @@ export default function ManageCommittee() {
                       <span className="mc-member-role">{m.role}</span>
                       {m.bio && (
                         <span className="mc-member-bio" title={m.bio}>
-                          {m.bio.length > 80
-                            ? m.bio.slice(0, 80) + "…"
+                          {m.bio.length > 120
+                            ? m.bio.slice(0, 120) + "…"
                             : m.bio}
                         </span>
                       )}
@@ -586,9 +601,7 @@ export default function ManageCommittee() {
         </div>
       </section>
 
-      {/* ============================================================
-          COMMITTEE MEMBERS SECTION
-         ============================================================ */}
+      {/* COMMITTEE MEMBERS SECTION */}
       <section className="mc-section committee-section">
         <div className="mc-section-head">
           <div>
@@ -600,7 +613,6 @@ export default function ManageCommittee() {
         </div>
 
         <div className="mc-layout">
-          {/* MEMBER FORM */}
           <form className="mc-form" onSubmit={saveMember}>
             <h3>
               {editingMemberId ? "Edit member" : "Add committee member"}
@@ -732,14 +744,14 @@ export default function ManageCommittee() {
 
             <label>Short description</label>
             <textarea
-              rows={3}
+              rows={5}
               value={memberForm.bio}
               onChange={(e) => setMember("bio", e.target.value)}
-              placeholder="A brief note about this person (max 500 chars)"
-              maxLength={500}
+              placeholder="A brief note about this person (max 1000 chars)"
+              maxLength={1000}
               className="mc-bio-input"
             />
-            <p className="mc-bio-counter">{memberForm.bio.length}/500</p>
+            <p className="mc-bio-counter">{memberForm.bio.length}/1000</p>
 
             <div className="mc-grid-2">
               <div>
@@ -791,7 +803,6 @@ export default function ManageCommittee() {
             </div>
           </form>
 
-          {/* MEMBER LIST */}
           <div className="mc-list">
             <h3>
               {regularMembers.length} committee member
@@ -828,8 +839,8 @@ export default function ManageCommittee() {
                       )}
                       {m.bio && (
                         <span className="mc-member-bio" title={m.bio}>
-                          {m.bio.length > 80
-                            ? m.bio.slice(0, 80) + "…"
+                          {m.bio.length > 120
+                            ? m.bio.slice(0, 120) + "…"
                             : m.bio}
                         </span>
                       )}
@@ -904,9 +915,7 @@ const css = `
   font-size:0.9rem; margin-bottom:16px;
 }
 .mc-banner.error{ background:#fff2f0; color:#b23b3b; border:1px solid #f0c8c2; }
-.mc-banner.success{ background:#E3F3E5; color:#2e7d32; border:1px solid #bfe0c4; }
 
-/* ---------- SECTION WRAPPER ---------- */
 .mc-section{
   margin-bottom:44px;
   padding-bottom:32px;
@@ -941,7 +950,6 @@ const css = `
   color:#5a6380; font-size:0.85rem; margin:0;
 }
 
-/* ---------- LAYOUT ---------- */
 .mc-layout{
   display:grid;
   grid-template-columns:400px 1fr;
@@ -952,7 +960,6 @@ const css = `
   .mc-layout{ grid-template-columns:1fr; }
 }
 
-/* ---------- FORM ---------- */
 .mc-form{
   background:#fff;
   border:1px solid rgba(27,42,74,0.14);
@@ -996,7 +1003,6 @@ const css = `
 }
 .mc-grid-2 > div{ min-width:0; }
 
-/* ---------- BIO ---------- */
 .mc-bio-input{
   width:100%;
   padding:9px 12px;
@@ -1005,8 +1011,9 @@ const css = `
   font-family:inherit;
   font-size:0.9rem;
   resize:vertical;
-  min-height:70px;
+  min-height:120px;
   background:#fff;
+  line-height:1.6;
 }
 .mc-bio-input:focus{
   outline:none;
@@ -1020,7 +1027,6 @@ const css = `
   margin:-4px 0 4px;
 }
 
-/* ---------- PHOTO ---------- */
 .mc-photo-block{
   display:flex; align-items:center; gap:16px;
   margin-bottom:10px;
@@ -1067,19 +1073,16 @@ const css = `
 }
 .mc-photo-btn.remove:hover{ background:#fff2f0; color:#b23b3b; border-color:#f0c8c2; }
 
-/* ---------- TOGGLE ---------- */
 .mc-toggle{
   display:flex; align-items:center; gap:8px;
   font-size:0.88rem; color:#3a4560; cursor:pointer;
   padding:9px 0;
 }
 
-/* ---------- FORM ACTIONS ---------- */
 .mc-form-actions{
   display:flex; gap:8px; margin-top:16px;
 }
 
-/* ---------- BUTTONS ---------- */
 .mc-btn{
   padding:9px 16px;
   border-radius:3px;
@@ -1105,7 +1108,6 @@ const css = `
 .mc-btn.ghost{ background:transparent; }
 .mc-btn.small{ padding:6px 12px; font-size:0.82rem; }
 
-/* ---------- LIST ---------- */
 .mc-list{
   background:#fff;
   border:1px solid rgba(27,42,74,0.14);

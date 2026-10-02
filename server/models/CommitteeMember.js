@@ -8,7 +8,7 @@ const CommitteeMemberSchema = new mongoose.Schema(
     initials: { type: String, default: "", trim: true },
     photo: { type: String, default: "" },
     year: { type: String, default: "" },
-    bio: { type: String, default: "", trim: true, maxlength: 500 },
+    bio: { type: String, default: "", trim: true, maxlength: 1000 },
 
     category: {
       type: String,
