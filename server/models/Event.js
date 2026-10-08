@@ -28,6 +28,10 @@ const EventSchema = new mongoose.Schema(
     coverImage: { type: String, default: "" },
     galleryPreview: [{ type: String }],
 
+    /* ---------- PUBLIC GALLERY ---------- */
+    galleryPublished: { type: Boolean, default: false },
+    galleryPublishedAt: { type: Date, default: null },
+
     status: {
       type: String,
       enum: ["archive", "upcoming", "ongoing", "completed"],

@@ -63,12 +63,20 @@ export default function LiveEvent() {
         <p className="lv-meta">
           {event.when} {event.place && `· ${event.place}`}
         </p>
-        <Link
-          to={`/events/live/${slug}/scoreboard`}
-          className="btn solid"
-        >
-          🏆 View Live Scoreboard
-        </Link>
+        <div className="lv-hero-buttons">
+  <Link
+    to={`/events/live/${slug}/scoreboard`}
+    className="lv-scoreboard-btn"
+  >
+    🏆 View Live Scoreboard
+  </Link>
+  <Link
+    to={`/events/live/${slug}/gallery`}
+    className="lv-scoreboard-btn"
+  >
+    📸 View Team Gallery
+  </Link>
+</div>
       </div>
       </header>
 
@@ -227,5 +235,13 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
   font-size:1.5em;
   line-height:1;
   font-weight:600;
+}
+
+.lv-hero-buttons{
+  display:flex;
+  gap:12px;
+  justify-content:center;
+  flex-wrap:wrap;
+  margin-top:6px;
 }
 `;

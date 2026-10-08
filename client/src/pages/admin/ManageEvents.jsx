@@ -1,35 +1,98 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import toast from "react-hot-toast";
+import { confirmDialog } from "../../lib/dialogs";
 
 export default function ManageEvents() {
   const nav = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [galleryStats, setGalleryStats] = useState({});
 
+  /* ---------- LOAD ---------- */
   const load = async () => {
     setLoading(true);
     try {
       const { data } = await api.get("/events");
       setEvents(data);
+      await loadStats(data);
     } catch (e) {
       console.error(e);
+      toast.error("Failed to load events");
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadStats = async (eventList) => {
+    const stats = {};
+    await Promise.all(
+      eventList.map(async (ev) => {
+        try {
+          const { data } = await api.get(
+            `/submissions/gallery/${ev._id}/stats`
+          );
+          stats[ev._id] = data;
+        } catch {
+          stats[ev._id] = { total: 0, images: 0, videos: 0 };
+        }
+      })
+    );
+    setGalleryStats(stats);
   };
 
   useEffect(() => {
     load();
   }, []);
 
+  /* ---------- DELETE ---------- */
   const del = async (ev) => {
-    if (!window.confirm(`Delete "${ev.title}"? This cannot be undone.`)) return;
+    const ok = await confirmDialog({
+      title: "Delete event?",
+      text: `"${ev.title}" and all its data will be permanently removed. This cannot be undone.`,
+      icon: "warning",
+      danger: true,
+      confirmText: "Delete event",
+    });
+    if (!ok) return;
+
     try {
       await api.delete(`/events/${ev._id}`);
       setEvents((list) => list.filter((x) => x._id !== ev._id));
+      toast.success("Event deleted");
     } catch (e) {
-      alert(e.response?.data?.message || "Delete failed");
+      toast.error(e.response?.data?.message || "Delete failed");
+    }
+  };
+
+  /* ---------- GALLERY PUBLISH TOGGLE ---------- */
+  const toggleGallery = async (ev) => {
+    const isPublished = ev.galleryPublished;
+    const stats = galleryStats[ev._id] || { total: 0 };
+
+    const ok = await confirmDialog({
+      title: isPublished ? "Unpublish gallery?" : "Publish gallery?",
+      text: isPublished
+        ? `Hide the team gallery for "${ev.title}" from the public?`
+        : `Make the team gallery for "${ev.title}" publicly visible?\n\nThis will show all ${stats.total} approved photos and videos to anyone with the link.`,
+      icon: isPublished ? "warning" : "question",
+      danger: isPublished,
+      confirmText: isPublished ? "Unpublish" : "Publish",
+    });
+    if (!ok) return;
+
+    try {
+      const url = isPublished
+        ? `/submissions/gallery/${ev._id}/unpublish`
+        : `/submissions/gallery/${ev._id}/publish`;
+      await api.put(url);
+      toast.success(
+        isPublished ? "Gallery unpublished" : "Gallery published"
+      );
+      await load();
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Failed");
     }
   };
 
@@ -41,7 +104,7 @@ export default function ManageEvents() {
         <div>
           <h1>Events</h1>
           <p className="me-sub">
-            Create and manage events — archive, upcoming and ongoing.
+            Create and manage events. Publish team galleries when ready.
           </p>
         </div>
         <Link to="/admin/events/new" className="me-primary-btn">
@@ -67,60 +130,91 @@ export default function ManageEvents() {
                 <th>Slug</th>
                 <th>Status</th>
                 <th>When</th>
-                <th>Sections</th>
+                <th>Gallery</th>
                 <th>Published</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {events.map((ev) => (
-                <tr key={ev._id}>
-                  <td>
-                    <strong>{ev.title}</strong>
-                    {ev.tag && <span className="me-tag">{ev.tag}</span>}
-                  </td>
-                  <td>
-                    <code>{ev.slug}</code>
-                  </td>
-                  <td>
-                    <span className={`me-status ${ev.status}`}>{ev.status}</span>
-                  </td>
-                  <td>{ev.when}</td>
-                  <td>{ev.sections?.length || 0}</td>
-                  <td>
-                    {ev.published ? (
-                      <span className="me-pub yes">Yes</span>
-                    ) : (
-                      <span className="me-pub no">No</span>
-                    )}
-                  </td>
-                  <td className="me-actions">
-                    <button
-                      onClick={() => nav(`/admin/events/${ev._id}`)}
-                      className="me-btn"
-                    >
-                      Edit
-                    </button>
-                    <Link
-                      to={
-                        ev.status === "ongoing" || ev.status === "upcoming"
-                          ? `/events/live/${ev.slug}`
-                          : `/events/${ev.slug}`
-                      }
-                      target="_blank"
-                      className="me-btn ghost"
-                    >
-                      View
-                    </Link>
-                    <button
-                      onClick={() => del(ev)}
-                      className="me-btn danger"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {events.map((ev) => {
+                const stats = galleryStats[ev._id] || { total: 0 };
+                const published = ev.galleryPublished;
+
+                return (
+                  <tr key={ev._id}>
+                    <td>
+                      <strong>{ev.title}</strong>
+                      {ev.tag && <span className="me-tag">{ev.tag}</span>}
+                    </td>
+                    <td>
+                      <code>{ev.slug}</code>
+                    </td>
+                    <td>
+                      <span className={`me-status ${ev.status}`}>
+                        {ev.status}
+                      </span>
+                    </td>
+                    <td>{ev.when}</td>
+                    <td>
+                      <button
+                        className={`me-gallery-btn ${
+                          published ? "published" : "unpublished"
+                        }`}
+                        onClick={() => toggleGallery(ev)}
+                        title={
+                          published
+                            ? `Published — ${stats.total} items. Click to unpublish.`
+                            : `Not published — ${stats.total} items ready. Click to publish.`
+                        }
+                      >
+                        {published ? "🌐 Published" : "🔒 Not published"}
+                        <span className="me-gallery-count">
+                          {stats.total}
+                        </span>
+                      </button>
+                    </td>
+                    <td>
+                      {ev.published ? (
+                        <span className="me-pub yes">Yes</span>
+                      ) : (
+                        <span className="me-pub no">No</span>
+                      )}
+                    </td>
+                    <td className="me-actions">
+                      <button
+                        onClick={() => nav(`/admin/events/${ev._id}`)}
+                        className="me-btn"
+                      >
+                        Edit
+                      </button>
+                      <Link
+                        to={
+                          ev.status === "ongoing" || ev.status === "upcoming"
+                            ? `/events/live/${ev.slug}`
+                            : `/events/${ev.slug}`
+                        }
+                        target="_blank"
+                        className="me-btn ghost"
+                      >
+                        View
+                      </Link>
+                      <Link
+                        to={`/events/live/${ev.slug}/gallery`}
+                        target="_blank"
+                        className="me-btn ghost"
+                      >
+                        Gallery
+                      </Link>
+                      <button
+                        onClick={() => del(ev)}
+                        className="me-btn danger"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -206,6 +300,51 @@ const css = `
 .me-pub{ font-size:0.8rem; font-weight:600; }
 .me-pub.yes{ color:#2e7d32; }
 .me-pub.no{ color:#b23b3b; }
+
+/* ---------- GALLERY TOGGLE ---------- */
+.me-gallery-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 12px;
+  border-radius:16px;
+  font-size:0.8rem;
+  font-weight:500;
+  font-family:inherit;
+  cursor:pointer;
+  border:1px solid transparent;
+  transition:.15s;
+  white-space:nowrap;
+}
+.me-gallery-btn.published{
+  background:#E3F3E5;
+  color:#2e7d32;
+  border-color:#bfe0c4;
+}
+.me-gallery-btn.published:hover{
+  background:#d5ecd8;
+  border-color:#a5d0a9;
+}
+.me-gallery-btn.unpublished{
+  background:#F8F4E9;
+  color:#7b8399;
+  border-color:rgba(27,42,74,0.14);
+}
+.me-gallery-btn.unpublished:hover{
+  background:#fdfaf1;
+  border-color:rgba(184,145,47,0.4);
+  color:#5a6380;
+}
+.me-gallery-count{
+  background:rgba(0,0,0,0.08);
+  padding:1px 8px;
+  border-radius:10px;
+  font-size:0.72rem;
+  font-weight:600;
+}
+.me-gallery-btn.published .me-gallery-count{
+  background:rgba(46,125,50,0.15);
+}
 
 .me-actions{ display:flex; gap:6px; flex-wrap:wrap; }
 .me-btn{

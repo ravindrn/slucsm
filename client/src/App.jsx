@@ -30,6 +30,8 @@ import TeamDashboard from "./pages/team/TeamDashboard";
 import TeamVerify from "./pages/team/TeamVerify";
 import ScanLanding from "./pages/team/ScanLanding";
 
+import PublicGallery from "./pages/PublicGallery";
+
 export default function App() {
   return (
     <AuthProvider>
@@ -119,6 +121,7 @@ export default function App() {
               }
             />
           </Route>
+          <Route path="/events/live/:slug/gallery" element={<PublicGallery />} />
 
           {/* ---------- 404 ---------- */}
           <Route path="*" element={<EventNotFound />} />
