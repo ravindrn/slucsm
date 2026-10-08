@@ -5,6 +5,7 @@ import EventNav from "../components/EventNav";
 import SectionRenderer from "../components/sections";
 import EventNotFound from "./EventNotFound";
 
+
 export default function EventDetail() {
   const { slug } = useParams();
   const [event, setEvent] = useState(null);
@@ -44,12 +45,27 @@ export default function EventDetail() {
         )}
         <div className="ev-hero-overlay" />
         <div className="ev-hero-content">
-          {event.tag && <span className="ev-tag">{event.tag}</span>}
-          <h1>{event.title}</h1>
-          <p className="ev-meta">
-            {event.when} {event.place && `· ${event.place}`}
-          </p>
-        </div>
+  {event.tag && <span className="ev-tag">{event.tag}</span>}
+  <h1>{event.title}</h1>
+  {event.theme && (
+    <p className="ev-theme">
+      <span className="ev-theme-quote">"</span>
+      {event.theme}
+      <span className="ev-theme-quote">"</span>
+    </p>
+  )}
+  <p className="ev-meta">
+    {event.when} {event.place && `· ${event.place}`}
+  </p>
+  <div className="ev-hero-buttons">
+    <Link
+      to={`/events/live/${event.slug}/gallery`}
+      className="ev-gallery-btn"
+    >
+      📸 View Team Gallery
+    </Link>
+  </div>
+</div>
       </header>
 
       <main className="ev-main">
@@ -188,4 +204,48 @@ html, body, #root{ margin:0; padding:0; width:100%; overflow-x:hidden; }
 .custom-html img{ max-width:100%; border-radius:4px; }
 
 .ev-back-bottom{ text-align:center; margin-top:80px; }
+
+.ev-theme{
+  font-family:'Cormorant Garamond', serif;
+  font-size:clamp(1.1rem,2.2vw,1.4rem);
+  font-style:italic;
+  color:var(--maroon);
+  margin:8px 0 12px;
+  line-height:1.4;
+  display:flex;
+  align-items:baseline;
+  justify-content:center;
+  gap:2px;
+  flex-wrap:wrap;
+}
+.ev-theme-quote{
+  color:var(--gold);
+  font-size:1.4em;
+  line-height:1;
+  font-weight:600;
+}
+
+.ev-hero-buttons{
+  display:flex;
+  gap:12px;
+  justify-content:center;
+  flex-wrap:wrap;
+  margin-top:16px;
+}
+.ev-gallery-btn{
+  display:inline-block;
+  padding:11px 26px;
+  background:var(--ink);
+  color:var(--ivory);
+  border-radius:3px;
+  text-decoration:none;
+  font-size:0.92rem;
+  font-weight:500;
+  transition:.2s;
+  border:1px solid var(--ink);
+}
+.ev-gallery-btn:hover{
+  background:var(--maroon);
+  border-color:var(--maroon);
+}
 `;
