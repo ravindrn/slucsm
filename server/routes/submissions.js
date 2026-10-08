@@ -3,6 +3,7 @@ import { v2 as cloudinary } from "cloudinary";
 import Submission from "../models/Submission.js";
 import Task from "../models/Task.js";
 import Team from "../models/Team.js";
+import Event from "../models/Event.js";
 import { protect, teamAuth } from "../middleware/auth.js";
 import { upload } from "../middleware/upload.js";
 import { computeTaskUnlocks } from "../utils/taskUnlock.js";
@@ -10,13 +11,206 @@ import { computeTaskUnlocks } from "../utils/taskUnlock.js";
 const router = express.Router();
 
 /* ============================================================
-   TEAM: submit a task
-   Body (multipart):
-     taskId       — the task being submitted
-     note         — optional note
-     labels       — JSON array of labels matching file order
-     files[]      — one or more files
+   ⚠️  ROUTE ORDER MATTERS
+   Specific routes first. Generic /:id routes LAST.
    ============================================================ */
+
+/* ============================================================
+   1. PUBLIC GALLERY ROUTES (must be first)
+   ============================================================ */
+
+/* GET /api/submissions/gallery/:eventId/stats — admin stats */
+router.get("/gallery/:eventId/stats", protect, async (req, res) => {
+  try {
+    const submissions = await Submission.find({
+      eventId: req.params.eventId,
+      status: "approved",
+    }).select("files");
+
+    let total = 0;
+    let images = 0;
+    let videos = 0;
+    for (const sub of submissions) {
+      for (const f of sub.files || []) {
+        if (!f.url) continue;
+        total += 1;
+        if (f.type === "video") videos += 1;
+        else images += 1;
+      }
+    }
+
+    res.json({ total, images, videos });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
+/* PUT /api/submissions/gallery/:eventId/publish */
+router.put("/gallery/:eventId/publish", protect, async (req, res) => {
+  try {
+    const event = await Event.findByIdAndUpdate(
+      req.params.eventId,
+      {
+        galleryPublished: true,
+        galleryPublishedAt: new Date(),
+      },
+      { new: true }
+    ).select("title slug galleryPublished galleryPublishedAt");
+
+    if (!event) return res.status(404).json({ message: "Event not found" });
+    res.json({ ok: true, event });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
+/* PUT /api/submissions/gallery/:eventId/unpublish */
+router.put("/gallery/:eventId/unpublish", protect, async (req, res) => {
+  try {
+    const event = await Event.findByIdAndUpdate(
+      req.params.eventId,
+      {
+        galleryPublished: false,
+        galleryPublishedAt: null,
+      },
+      { new: true }
+    ).select("title slug galleryPublished galleryPublishedAt");
+
+    if (!event) return res.status(404).json({ message: "Event not found" });
+    res.json({ ok: true, event });
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+});
+
+/* GET /api/submissions/gallery/:eventId — public gallery data */
+router.get("/gallery/:eventId", async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId).select(
+      "title slug galleryPublished galleryPublishedAt"
+    );
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    if (!event.galleryPublished) {
+      return res.status(403).json({
+        message: "Gallery not yet published",
+        code: "GALLERY_NOT_PUBLISHED",
+      });
+    }
+
+    const { type = "all" } = req.query;
+
+    const submissions = await Submission.find({
+      eventId: req.params.eventId,
+      status: "approved",
+    })
+      .populate("teamId", "name color teamCode")
+      .populate("taskId", "title group order")
+      .sort("-createdAt");
+
+    const items = [];
+    for (const sub of submissions) {
+      if (!sub.teamId) continue;
+      const files = sub.files || [];
+      for (const f of files) {
+        if (!f.url) continue;
+        if (type === "image" && f.type !== "image") continue;
+        if (type === "video" && f.type !== "video") continue;
+        items.push({
+          _id: `${sub._id}-${f.url}`,
+          url: f.url,
+          type: f.type || "image",
+          label: f.label || "",
+          note: sub.note || "",
+          submittedAt: sub.createdAt,
+          team: {
+            _id: sub.teamId._id,
+            name: sub.teamId.name,
+            color: sub.teamId.color || "#B8912F",
+            teamCode: sub.teamId.teamCode || "",
+          },
+          task: {
+            title: sub.taskId?.title || "Challenge",
+            group: sub.taskId?.group || "",
+          },
+        });
+      }
+    }
+
+    const counts = {
+      all: items.length,
+      image: items.filter((i) => i.type === "image").length,
+      video: items.filter((i) => i.type === "video").length,
+    };
+
+    const teamsMap = {};
+    for (const item of items) {
+      if (!teamsMap[item.team._id]) {
+        teamsMap[item.team._id] = { ...item.team, count: 0 };
+      }
+      teamsMap[item.team._id].count += 1;
+    }
+    const teams = Object.values(teamsMap).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
+    res.json({
+      items,
+      counts,
+      teams,
+      event: {
+        title: event.title,
+        slug: event.slug,
+        galleryPublishedAt: event.galleryPublishedAt,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
+/* ============================================================
+   2. PUBLIC: Leaderboard
+   ============================================================ */
+
+router.get("/leaderboard/:eventId", async (req, res) => {
+  const teams = await Team.find({
+    eventId: req.params.eventId,
+    active: true,
+  })
+    .select("name color totalScore")
+    .sort("-totalScore");
+  res.json(teams);
+});
+
+/* ============================================================
+   3. ADMIN: Event submissions list
+   ============================================================ */
+
+router.get("/event/:eventId", protect, async (req, res) => {
+  const subs = await Submission.find({ eventId: req.params.eventId })
+    .populate("teamId", "name color")
+    .populate("taskId", "title points pointsPerItem submissionType")
+    .sort("-createdAt");
+  res.json(subs);
+});
+
+/* ============================================================
+   4. ADMIN: Submissions for a specific team + task
+   ============================================================ */
+
+router.get("/team/:teamId/task/:taskId", protect, async (req, res) => {
+  const subs = await Submission.find({
+    teamId: req.params.teamId,
+    taskId: req.params.taskId,
+  }).sort("-createdAt");
+  res.json(subs);
+});
+
+/* ============================================================
+   5. TEAM: Submit a task
+   ============================================================ */
+
 router.post(
   "/",
   teamAuth,
@@ -28,16 +222,13 @@ router.post(
       const task = await Task.findById(taskId);
       if (!task) return res.status(404).json({ message: "Task not found" });
 
-      /* ---------- REJECT NON-SUBMITTABLE TASKS ---------- */
       if (task.submittable === false) {
         return res.status(400).json({
           message:
             "This task doesn't accept submissions — it's admin-awarded.",
         });
       }
-      /* --------------------------------------------------- */
 
-      /* ---------- CHECK IF TASK IS UNLOCKED FOR THIS TEAM ---------- */
       const allTasks = await Task.find({
         eventId: req.team.eventId,
         active: true,
@@ -57,7 +248,6 @@ router.post(
           message: "Complete previous tasks first",
         });
       }
-      /* ------------------------------------------------------------ */
 
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ message: "No files uploaded" });
@@ -83,11 +273,6 @@ router.post(
         label: parsedLabels[i] || "",
       }));
 
-      /* ------------------------------------------------------------
-         Submission behavior:
-           progress  → create a new submission each time
-           single/multi → replace previous if not approved
-         ------------------------------------------------------------ */
       let sub;
       if (task.submissionType === "progress") {
         sub = await Submission.create({
@@ -108,7 +293,6 @@ router.post(
           return res.status(400).json({ message: "Task already approved" });
         }
 
-        /* Delete old files from Cloudinary before replacing */
         if (existing?.files?.length) {
           for (const f of existing.files) {
             if (f.publicId) {
@@ -147,30 +331,9 @@ router.post(
 );
 
 /* ============================================================
-   ADMIN: list submissions for an event
+   6. ADMIN: Approve / reject / adjust score
    ============================================================ */
-router.get("/event/:eventId", protect, async (req, res) => {
-  const subs = await Submission.find({ eventId: req.params.eventId })
-    .populate("teamId", "name color")
-    .populate("taskId", "title points pointsPerItem submissionType")
-    .sort("-createdAt");
-  res.json(subs);
-});
 
-/* ============================================================
-   ADMIN: submissions for a specific team + task
-   ============================================================ */
-router.get("/team/:teamId/task/:taskId", protect, async (req, res) => {
-  const subs = await Submission.find({
-    teamId: req.params.teamId,
-    taskId: req.params.taskId,
-  }).sort("-createdAt");
-  res.json(subs);
-});
-
-/* ============================================================
-   ADMIN: approve / reject / adjust score
-   ============================================================ */
 router.put("/:id", protect, async (req, res) => {
   try {
     const { status, score, itemsScored } = req.body;
@@ -180,7 +343,6 @@ router.put("/:id", protect, async (req, res) => {
     const task = sub.taskId;
     const previousScore = sub.score;
 
-    /* For multi-item tasks, compute score from itemsScored */
     let finalScore = score ?? sub.score;
 
     if (Array.isArray(itemsScored) && itemsScored.length > 0) {
@@ -203,7 +365,6 @@ router.put("/:id", protect, async (req, res) => {
     sub.reviewedAt = new Date();
     await sub.save();
 
-    /* Update team total score */
     const team = await Team.findById(sub.teamId);
     if (team) {
       team.totalScore = team.totalScore - previousScore + finalScore;
@@ -217,21 +378,9 @@ router.put("/:id", protect, async (req, res) => {
 });
 
 /* ============================================================
-   PUBLIC: leaderboard for event
+   7. ADMIN: Bulk approve all pending for a team + task
    ============================================================ */
-router.get("/leaderboard/:eventId", async (req, res) => {
-  const teams = await Team.find({
-    eventId: req.params.eventId,
-    active: true,
-  })
-    .select("name color totalScore")
-    .sort("-totalScore");
-  res.json(teams);
-});
 
-/* ============================================================
-   ADMIN: bulk approve all pending for a team + task
-   ============================================================ */
 router.post("/bulk-approve/:taskId/:teamId", protect, async (req, res) => {
   try {
     const subs = await Submission.find({
